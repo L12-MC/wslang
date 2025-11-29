@@ -508,8 +508,37 @@ bool evaluateCondition(String condition) {
 }
 
 void executeBlock(List<String> commands) {
-  for (var cmd in commands) {
-    processCommand(cmd);
+  int i = 0;
+  while (i < commands.length) {
+    String cmd = commands[i];
+    
+    // Handle multi-line blocks (while, if, for, try, etc.)
+    if (cmd.trim().startsWith('while ') || cmd.trim().startsWith('if ') || 
+        cmd.trim().startsWith('for ') || cmd.trim().startsWith('try')) {
+      List<String> block = [cmd.trim()];
+      i++;
+      int depth = 1;
+      
+      while (i < commands.length && depth > 0) {
+        String blockLine = commands[i].trim();
+        if (blockLine == 'end') {
+          depth--;
+          if (depth == 0) {
+            processMultiLineCommand(block);
+            break;
+          }
+        }
+        if (blockLine.startsWith('while ') || blockLine.startsWith('if ') || 
+            blockLine.startsWith('for ') || blockLine.startsWith('try')) {
+          depth++;
+        }
+        block.add(blockLine);
+        i++;
+      }
+    } else {
+      processCommand(cmd);
+    }
+    i++;
   }
 }
 
@@ -884,8 +913,8 @@ void processCommand(String cmd) {
       return;
     }
     
-    // Handle string concatenation with +
-    if (expression.contains('+') && !RegExp(r'^\d').hasMatch(expression)) {
+    // Handle string concatenation with + (only if it contains string literals)
+    if (expression.contains('+') && (expression.contains('"') || expression.contains("'"))) {
       var result = evaluateStringExpression(expression);
       if (result != null) {
         variables[varName] = result;
@@ -938,6 +967,27 @@ void processCommand(String cmd) {
     if (value != null) {
       print(value);
       return;
+    }
+  }
+  
+  // Handle user-defined function calls
+  if (cmd.contains('(') && cmd.endsWith(')')) {
+    int parenIdx = cmd.indexOf('(');
+    String funcName = cmd.substring(0, parenIdx).trim();
+    if (functions.containsKey(funcName)) {
+      try {
+        String args = cmd.substring(parenIdx + 1, cmd.length - 1);
+        List<dynamic> argList = args.isEmpty ? [] : args.split(',').map((e) => parseValue(e.trim())).toList();
+        functions[funcName]!(argList);
+        return;
+      } catch (e) {
+        reportError(
+          "Error calling function '$funcName'",
+          line: cmd,
+          suggestion: "Check that all arguments are valid.\n  Error: $e"
+        );
+        return;
+      }
     }
   }
   
@@ -1281,6 +1331,51 @@ void processMultiLineCommand(List<String> block) {
       variables = oldVars;
     };
     print("> Function $funcName defined");
+  } else if (firstLine.startsWith('while ')) {
+    String condition = firstLine.substring(6).trim();
+    List<String> body = block.sublist(1);
+    
+    while (evaluateCondition(condition)) {
+      executeBlock(body);
+    }
+  } else if (firstLine.startsWith('if ')) {
+    String condition = firstLine.substring(3).trim();
+    List<String> ifBody = [];
+    List<String> elseBody = [];
+    bool inElse = false;
+    
+    for (var line in block.sublist(1)) {
+      if (line.trim() == 'else') {
+        inElse = true;
+        continue;
+      }
+      if (inElse) {
+        elseBody.add(line);
+      } else {
+        ifBody.add(line);
+      }
+    }
+    
+    if (evaluateCondition(condition)) {
+      executeBlock(ifBody);
+    } else if (elseBody.isNotEmpty) {
+      executeBlock(elseBody);
+    }
+  } else if (firstLine.startsWith('for ')) {
+    RegExp forPattern = RegExp(r'for\s+(\w+)\s+in\s+range\((\d+),\s*(\d+)\)');
+    Match? match = forPattern.firstMatch(firstLine);
+    
+    if (match != null) {
+      String varName = match.group(1)!;
+      int start = int.parse(match.group(2)!);
+      int end = int.parse(match.group(3)!);
+      List<String> body = block.sublist(1);
+      
+      for (int i = start; i < end; i++) {
+        variables[varName] = i.toDouble();
+        executeBlock(body);
+      }
+    }
   } else if (firstLine.startsWith('try')) {
     List<String> tryBody = [];
     List<String> exceptBody = [];
