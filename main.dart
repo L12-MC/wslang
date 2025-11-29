@@ -2,12 +2,57 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
 
-const String VERSION = "1.0.0";
+const String VERSION = "1.0.1";
 
 Map<String, dynamic> variables = {};
 Map<String, Function> functions = {};
 Map<String, dynamic> classes = {};
 String? currentError;
+
+// Error reporting
+int currentLineNum = 0;
+String currentLineText = "";
+String currentFile = "";
+
+void reportError(String message, {String? line, int? lineNum, String? suggestion}) {
+  print("");
+  print("━" * 60);
+  print("❌ ERROR");
+  print("━" * 60);
+  
+  if (currentFile.isNotEmpty) {
+    print("File: $currentFile");
+  }
+  
+  // Use provided lineNum or fall back to currentLineNum
+  int displayLineNum = lineNum ?? currentLineNum;
+  if (displayLineNum > 0) {
+    print("Line: $displayLineNum");
+  }
+  
+  print("");
+  print("$message");
+  
+  // Use provided line or fall back to currentLineText
+  String displayLine = line ?? currentLineText;
+  if (displayLine.trim().isNotEmpty) {
+    print("");
+    print("Problematic code:");
+    print("  │ $displayLine");
+    print("  └─" + "─" * displayLine.length);
+  }
+  
+  if (suggestion != null) {
+    print("");
+    print("💡 Suggestion:");
+    print("  $suggestion");
+  }
+  
+  print("━" * 60);
+  print("");
+  
+  currentError = message;
+}
 
 // Package manager
 class PackageManager {
@@ -273,11 +318,17 @@ Canvas canvas = Canvas();
 
 String calculate(String num1, String num2, String op) {
   if(!['+', '-', '*', '/', '%'].contains(op)) {
-    print("Invalid input.");
+    reportError(
+      "Invalid operator: $op",
+      suggestion: "Valid operators are: +, -, *, /, %"
+    );
     return num2;
   }
   if (op == '/' && double.tryParse(num2) == 0) {
-    print("Error: Division by zero.");
+    reportError(
+      "Division by zero",
+      suggestion: "Cannot divide by zero. Check your divisor value."
+    );
     return num2;
   }
   double result;
@@ -539,6 +590,31 @@ void processCommand(String cmd) {
     return;
   }
   
+  // Input function - read user input
+  if (cmd.startsWith('input(') && cmd.endsWith(')')) {
+    String content = cmd.substring(6, cmd.length - 1).trim();
+    
+    // Check if it's an assignment
+    if (cmd.contains('=') && !cmd.contains('==')) {
+      // This is handled by the assignment section below
+      // Fall through to assignment handling
+    } else {
+      // Direct call - print the prompt and return input
+      if (content.isNotEmpty) {
+        try {
+          String prompt = parseValue(content).toString();
+          stdout.write(prompt);
+        } catch (e) {
+          // Just use the content as-is
+          stdout.write(content);
+        }
+      }
+      String? userInput = stdin.readLineSync();
+      print(userInput ?? "");
+      return;
+    }
+  }
+  
   // String concatenation function
   if (cmd.startsWith('concat(') && cmd.endsWith(')')) {
     String args = cmd.substring(7, cmd.length - 1);
@@ -786,6 +862,22 @@ void processCommand(String cmd) {
     String varName = cmd.substring(0, eqIdx).trim();
     String expression = cmd.substring(eqIdx + 1).trim();
     
+    // Handle input() function
+    if (expression.startsWith('input(') && expression.endsWith(')')) {
+      String content = expression.substring(6, expression.length - 1).trim();
+      if (content.isNotEmpty) {
+        try {
+          String prompt = parseValue(content).toString();
+          stdout.write(prompt);
+        } catch (e) {
+          stdout.write(content);
+        }
+      }
+      String? userInput = stdin.readLineSync();
+      variables[varName] = userInput ?? "";
+      return;
+    }
+    
     // Handle list literals
     if (expression.startsWith('[') && expression.endsWith(']')) {
       variables[varName] = parseList(expression);
@@ -830,7 +922,12 @@ void processCommand(String cmd) {
       double result = evaluateExpression(tokens);
       variables[varName] = result;
     } catch (e) {
-      print("Error: Invalid expression.");
+      reportError(
+        "Invalid expression in assignment",
+        line: cmd,
+        lineNum: currentLineNum,
+        suggestion: "Check that all variables are defined and operators are valid.\n  Examples: x = 10, y = x + 5, z = x * (y + 2)"
+      );
     }
     return;
   }
@@ -851,7 +948,10 @@ void processCommand(String cmd) {
     double result = evaluateExpression(tokens);
     print(result);
   } catch (e) {
-    print("Error: Invalid expression.");
+    reportError(
+      "Invalid expression",
+      suggestion: "Check that all variables are defined and syntax is correct.\n  Example: x + y * 2 - (z / 4)"
+    );
   }
 }
 
@@ -967,7 +1067,10 @@ dynamic evaluateListAccess(String expr) {
   try {
     int index = int.parse(indexStr);
     if (index < 0 || index >= listVar.length) {
-      print("Error: Index out of bounds");
+      reportError(
+        "List index out of bounds",
+        suggestion: "Index $index is invalid for list '$listName' with length ${listVar.length}.\n  Valid indices are 0 to ${listVar.length - 1}"
+      );
       return null;
     }
     return listVar[index];
@@ -978,7 +1081,10 @@ dynamic evaluateListAccess(String expr) {
       if (idxVal is num) {
         int index = idxVal.toInt();
         if (index < 0 || index >= listVar.length) {
-          print("Error: Index out of bounds");
+          reportError(
+            "List index out of bounds",
+            suggestion: "Index $index is invalid for list '$listName' with length ${listVar.length}.\n  Valid indices are 0 to ${listVar.length - 1}"
+          );
           return null;
         }
         return listVar[index];
@@ -1104,8 +1210,13 @@ void executeFile(String filename) {
     print("> Executing $resolvedPath");
     List<String> lines = file.readAsLinesSync();
     
+    // Set current file for error reporting
+    currentFile = resolvedPath;
+    
     for (var i = 0; i < lines.length; i++) {
       String line = lines[i].trim();
+      currentLineText = lines[i];
+      currentLineNum = i + 1; // Line numbers start at 1
       
       // Skip empty lines and comments
       if (line.isEmpty || line.startsWith('#') || line.startsWith('//')) {

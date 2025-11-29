@@ -16,10 +16,47 @@ Well Simple comes with three powerful command-line tools:
 
 ## What's New in v1.0
 
-### Standalone Tools
-- **wpm** - Separate package manager executable
+### 🎯 Latest Features
 
-### New Features
+#### 💬 User Input Support
+```ws
+# Get input from users
+name = input("What is your name? ")
+age = input("How old are you? ")
+print(name)
+```
+
+#### 🐛 Enhanced Error Reporting
+Beautiful, helpful error messages with:
+- 📍 Exact line numbers
+- 📁 File names
+- 📝 Code snippets
+- 💡 Helpful suggestions
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+❌ ERROR
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+File: myprogram.ws
+Line: 10
+
+Division by zero
+
+Problematic code:
+  │ result = 10 / 0
+  └────────────────
+
+💡 Suggestion:
+  Cannot divide by zero. Check your divisor value.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+### Standalone Tools
+- **ws** - Well.. Simple interpreter
+- **wpm** - Separate package manager executable
+- **wvm** - Version manager for multiple WS installations
+
+### Core Features
 
 #### 📦 Package Manager (wpm)
 ```bash
@@ -35,7 +72,6 @@ wpm remove package-name
 # Update packages
 wpm update package-name
 ```
-
 
 #### 🔐 Cryptography Library
 ```ws

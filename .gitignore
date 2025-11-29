@@ -2,6 +2,7 @@
 build/
 wpm/
 wvm/
+libs/
 
 # Package and tool directories
 .wvm/
