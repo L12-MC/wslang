@@ -1,0 +1,10 @@
+# Build output
+build/
+
+# Package and tool directories
+.wvm/
+.dart_tool/
+
+# Scripts
+wpm.dart
+wvm.dart

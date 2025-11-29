@@ -1,0 +1,9 @@
+name: well_simple
+description: Well.. Simple programming language interpreter
+version: 1.0.0
+
+environment:
+  sdk: ^3.0.0
+
+dependencies:
+  crypto: ^3.0.3
