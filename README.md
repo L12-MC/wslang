@@ -1,30 +1,23 @@
-# Well.. Simple Language v1.0
+# Well Simple Language v1.0
 
-**Well.. Simple** - A simple yet powerful scripting language with graphics, JSON, cryptography, and file I/O capabilities.
+**Well Simple** - A Well... Simple yet powerful scripting language with graphics, JSON, cryptography, and file I/O capabilities.
 
 ## File Extension
 
-`.ws` - Well.. Simple files
+`.ws` - Well Simple files
 
 ## Tools
 
-Well.. Simple comes with three powerful command-line tools:
+Well Simple comes with three powerful command-line tools:
 
 - **ws** - The Well.. Simple interpreter
-- **wpm** - Well.. Simple Package Manager (install libraries from Git)
-- **wvm** - Well.. Simple Version Manager (manage multiple versions)
+- **wpm** - WS Package Manager (install libraries from Git)
+- (wip)**wvm** - WS Version Manager (manage multiple versions)
 
 ## What's New in v1.0
 
-### Language Rename
-- Renamed from "REPL v0.3" to "Well.. Simple v1.0"
-- New file extension: `.ws` (still supports `.repl` for compatibility)
-- Version tracking: `version` command
-
 ### Standalone Tools
 - **wpm** - Separate package manager executable
-- **wvm** - Separate version manager executable
-- Unified build system for all tools
 
 ### New Features
 
@@ -43,17 +36,6 @@ wpm remove package-name
 wpm update package-name
 ```
 
-#### 🔄 Version Manager (wvm)
-```bash
-# Install a version
-wvm install 1.0.0 /path/to/ws
-
-# Switch versions
-wvm use 1.0.0
-
-# Run programs with current version
-wvm run program.ws
-```
 
 #### 🔐 Cryptography Library
 ```ws

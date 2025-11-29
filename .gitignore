@@ -1,5 +1,7 @@
 # Build output
 build/
+wpm/
+wvm/
 
 # Package and tool directories
 .wvm/
