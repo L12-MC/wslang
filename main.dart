@@ -2,12 +2,14 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
 
-const String VERSION = "1.0.1";
+const String VERSION = "1.0.2";
 
 Map<String, dynamic> variables = {};
 Map<String, Function> functions = {};
 Map<String, dynamic> classes = {};
 String? currentError;
+dynamic returnValue;
+bool hasReturned = false;
 
 // Error reporting
 int currentLineNum = 0;
@@ -428,6 +430,130 @@ List<dynamic> parseList(String listStr) {
   return result;
 }
 
+// Find the next function call in the expression using proper parenthesis matching
+Map<String, dynamic>? findNextFunctionCall(String expression) {
+  RegExp funcNamePattern = RegExp(r'\w+\(');
+  Match? nameMatch = funcNamePattern.firstMatch(expression);
+  
+  if (nameMatch == null) return null;
+  
+  int startPos = nameMatch.start;
+  int openParenPos = nameMatch.end - 1;
+  String funcName = expression.substring(startPos, openParenPos);
+  
+  // Count parentheses to find the matching closing paren
+  int depth = 1;
+  int i = openParenPos + 1;
+  
+  while (i < expression.length && depth > 0) {
+    if (expression[i] == '(') {
+      depth++;
+    } else if (expression[i] == ')') {
+      depth--;
+    }
+    i++;
+  }
+  
+  if (depth != 0) return null; // Unmatched parentheses
+  
+  int closeParenPos = i - 1;
+  String args = expression.substring(openParenPos + 1, closeParenPos);
+  String fullMatch = expression.substring(startPos, closeParenPos + 1);
+  
+  return {
+    'funcName': funcName,
+    'args': args,
+    'fullMatch': fullMatch,
+    'startPos': startPos,
+  };
+}
+
+String preprocessExpression(String expression) {
+  // Replace function calls with their return values, starting from innermost
+  int maxIterations = 20;  // Prevent infinite loops
+  int iterations = 0;
+  
+  while (iterations < maxIterations) {
+    iterations++;
+    Map<String, dynamic>? match = findNextFunctionCall(expression);
+    
+    if (match == null) break;
+    
+    String funcName = match['funcName'];
+    String args = match['args'];
+    String fullMatch = match['fullMatch'];
+    
+    if (functions.containsKey(funcName)) {
+      try {
+        // Recursively preprocess arguments first
+        String preprocessedArgs = preprocessExpression(args);
+        
+        // Split arguments by comma, but respect parentheses
+        List<String> argStrings = [];
+        int depth = 0;
+        StringBuffer current = StringBuffer();
+        
+        for (int i = 0; i < preprocessedArgs.length; i++) {
+          String char = preprocessedArgs[i];
+          if (char == '(') {
+            depth++;
+            current.write(char);
+          } else if (char == ')') {
+            depth--;
+            current.write(char);
+          } else if (char == ',' && depth == 0) {
+            argStrings.add(current.toString().trim());
+            current.clear();
+          } else {
+            current.write(char);
+          }
+        }
+        if (current.isNotEmpty) {
+          argStrings.add(current.toString().trim());
+        }
+        
+        // Parse argument values
+        List<dynamic> argList = argStrings.map((e) {
+          try {
+            return double.parse(e);
+          } catch (_) {
+            try {
+              return parseValue(e);
+            } catch (_) {
+              // Try to evaluate as an expression
+              try {
+                List<String> tokens = tokenizeExpression(e);
+                return evaluateExpression(tokens);
+              } catch (_) {
+                return e;
+              }
+            }
+          }
+        }).toList();
+        
+        dynamic result = functions[funcName]!(argList);
+        if (result != null) {
+          expression = expression.replaceFirst(fullMatch, result.toString());
+        } else {
+          // Remove this function call even if it returns null
+          expression = expression.replaceFirst(fullMatch, '0');
+        }
+      } catch (e) {
+        // If error, stop processing
+        break;
+      }
+    } else {
+      // Not a user function, replace with placeholder to avoid matching again
+      expression = expression.replaceFirst(fullMatch, '_FUNC_${fullMatch}_');
+    }
+  }
+  
+  // Restore non-user function calls
+  expression = expression.replaceAll(RegExp(r'_FUNC_(.+?)_'), r'$1');
+  
+  return expression;
+}
+
 double evaluateExpression(List<String> tokens) {
   for (int i = 0; i < tokens.length; i++) {
     if (!['(', ')', '+', '-', '*', '/', '%'].contains(tokens[i])) {
@@ -509,7 +635,7 @@ bool evaluateCondition(String condition) {
 
 void executeBlock(List<String> commands) {
   int i = 0;
-  while (i < commands.length) {
+  while (i < commands.length && !hasReturned) {
     String cmd = commands[i];
     
     // Handle multi-line blocks (while, if, for, try, etc.)
@@ -545,6 +671,32 @@ void executeBlock(List<String> commands) {
 void processCommand(String cmd) {
   cmd = cmd.trim();
   if (cmd.isEmpty) return;
+  
+  // Handle return statement
+  if (cmd.startsWith('return')) {
+    hasReturned = true;
+    if (cmd.length > 6) {
+      String expression = cmd.substring(6).trim();
+      try {
+        // Preprocess to handle nested function calls
+        expression = preprocessExpression(expression);
+        
+        // Try to evaluate as expression
+        List<String> tokens = tokenizeExpression(expression);
+        returnValue = evaluateExpression(tokens);
+      } catch (e) {
+        // Try as a value
+        try {
+          returnValue = parseValue(expression);
+        } catch (e2) {
+          returnValue = null;
+        }
+      }
+    } else {
+      returnValue = null;
+    }
+    return;
+  }
   
   // Version command
   if (cmd == 'version' || cmd == 'version()') {
@@ -610,10 +762,18 @@ void processCommand(String cmd) {
         print(value);
       }
     } catch (e) {
-      if (variables.containsKey(content)) {
-        print(variables[content]);
-      } else {
-        print("Error: Invalid print argument.");
+      // Try to evaluate as an expression (e.g., i * i, x + y, etc.)
+      try {
+        String preprocessed = preprocessExpression(content);
+        List<String> tokens = tokenizeExpression(preprocessed);
+        double result = evaluateExpression(tokens);
+        print(result);
+      } catch (e2) {
+        if (variables.containsKey(content)) {
+          print(variables[content]);
+        } else {
+          print("Error: Invalid print argument.");
+        }
       }
     }
     return;
@@ -944,8 +1104,83 @@ void processCommand(String cmd) {
       }
     }
     
+    // Handle simple function calls (not expressions with operators)
+    if (expression.contains('(') && expression.endsWith(')') && 
+        !expression.contains('+') && !expression.contains('-') && 
+        !expression.contains('*') && !expression.contains('/') && 
+        !expression.contains('%')) {
+      int parenIdx = expression.indexOf('(');
+      String funcName = expression.substring(0, parenIdx).trim();
+      if (functions.containsKey(funcName)) {
+        try {
+          // Preprocess to handle nested function calls
+          String preprocessed = preprocessExpression(expression);
+          
+          // If preprocessing replaced the entire expression with a value, use it
+          if (!preprocessed.contains('(')) {
+            variables[varName] = parseValue(preprocessed);
+            return;
+          }
+          
+          // Otherwise, parse the function call
+          parenIdx = preprocessed.indexOf('(');
+          String args = preprocessed.substring(parenIdx + 1, preprocessed.length - 1);
+          
+          // Split arguments by comma, respecting parentheses
+          List<String> argStrings = [];
+          int depth = 0;
+          StringBuffer current = StringBuffer();
+          
+          for (int i = 0; i < args.length; i++) {
+            String char = args[i];
+            if (char == '(') {
+              depth++;
+              current.write(char);
+            } else if (char == ')') {
+              depth--;
+              current.write(char);
+            } else if (char == ',' && depth == 0) {
+              argStrings.add(current.toString().trim());
+              current.clear();
+            } else {
+              current.write(char);
+            }
+          }
+          if (current.isNotEmpty) {
+            argStrings.add(current.toString().trim());
+          }
+          
+          List<dynamic> argList = argStrings.isEmpty ? [] : argStrings.map((e) {
+            try {
+              return parseValue(e);
+            } catch (_) {
+              // Try to evaluate as an expression
+              try {
+                List<String> tokens = tokenizeExpression(e);
+                return evaluateExpression(tokens);
+              } catch (_) {
+                return e;
+              }
+            }
+          }).toList();
+          dynamic result = functions[funcName]!(argList);
+          variables[varName] = result;
+          return;
+        } catch (e) {
+          reportError(
+            "Error calling function '$funcName' in assignment",
+            line: cmd,
+            suggestion: "Check that all arguments are valid.\n  Error: $e"
+          );
+          return;
+        }
+      }
+    }
+    
     // Handle numeric expressions
-    List<String> tokens = tokenizeExpression(expression);
+    // First preprocess to handle function calls
+    String preprocessed = preprocessExpression(expression);
+    List<String> tokens = tokenizeExpression(preprocessed);
     
     try {
       double result = evaluateExpression(tokens);
@@ -1324,11 +1559,19 @@ void processMultiLineCommand(List<String> block) {
     
     functions[funcName] = (List args) {
       Map<String, dynamic> oldVars = Map.from(variables);
+      hasReturned = false;
+      returnValue = null;
+      
       for (int i = 0; i < paramList.length && i < args.length; i++) {
         variables[paramList[i]] = args[i];
       }
       executeBlock(body);
       variables = oldVars;
+      
+      dynamic result = returnValue;
+      hasReturned = false;
+      returnValue = null;
+      return result;
     };
     print("> Function $funcName defined");
   } else if (firstLine.startsWith('while ')) {
@@ -1490,11 +1733,19 @@ void main(List<String> args) {
       
       functions[funcName] = (List args) {
         Map<String, dynamic> oldVars = Map.from(variables);
+        hasReturned = false;
+        returnValue = null;
+        
         for (int i = 0; i < paramList.length; i++) {
           variables[paramList[i]] = args[i];
         }
         executeBlock(body);
         variables = oldVars;
+        
+        dynamic result = returnValue;
+        hasReturned = false;
+        returnValue = null;
+        return result;
       };
       continue;
     }
