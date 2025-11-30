@@ -1,0 +1,13 @@
+{
+  "iconDefinitions": {
+    "wslang-file": {
+      "iconPath": "../images/wslang.png"
+    }
+  },
+  "fileExtensions": {
+    "ws": "wslang-file",
+    "repl": "wslang-file"
+  },
+  "file": "wslang-file",
+  "hidesExplorerArrows": false
+}

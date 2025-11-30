@@ -11,6 +11,3 @@ libs/
 # Scripts
 wpm.dart
 wvm.dart
-
-# VS Code Extension
-vs-ext/

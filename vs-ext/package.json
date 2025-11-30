@@ -1,0 +1,61 @@
+{
+  "name": "wslang",
+  "displayName": "Well.. Simple Language Support",
+  "description": "Syntax highlighting and language support for Well.. Simple (.ws) files",
+  "version": "1.0.1",
+  "publisher": "L12",
+  "icon": "images/wslang.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/L12-MC/wslang"
+  },
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "keywords": [
+    "wslang",
+    "well simple",
+    "ws",
+    "scripting"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "wslang",
+        "aliases": [
+          "Well.. Simple",
+          "wslang"
+        ],
+        "extensions": [
+          ".ws",
+          ".repl"
+        ],
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./images/wslang.png",
+          "dark": "./images/wslang.png"
+        }
+      }
+    ],
+    "grammars": [
+      {
+        "language": "wslang",
+        "scopeName": "source.wslang",
+        "path": "./syntaxes/wslang.tmLanguage.json"
+      }
+    ],
+    "iconThemes": [
+      {
+        "id": "wslang-icons",
+        "label": "Well.. Simple Icons",
+        "path": "./fileicons/wslang-icon-theme.json"
+      }
+    ]
+  },
+  "dependencies": {
+    "@vscode/vsce": "^3.7.1"
+  }
+}
