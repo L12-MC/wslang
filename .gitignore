@@ -6,6 +6,7 @@ libs/
 # Package and tool directories
 .wvm/
 .dart_tool/
+ws_packages/
 
 # Scripts
 wpm.dart

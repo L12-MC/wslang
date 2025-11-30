@@ -1,0 +1,3 @@
+Test file content for readFile test
+This is line 2
+Line 3 here

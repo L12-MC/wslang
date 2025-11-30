@@ -1,0 +1,8 @@
+{
+  "testpkg": {
+    "name": "testpkg",
+    "version": "1.0.0",
+    "path": "ws_packages/testpkg",
+    "installed": "2024-11-30"
+  }
+}
