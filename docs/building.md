@@ -2,6 +2,24 @@
 
 This guide explains how to compile the Well.. Simple interpreter into standalone executables for different platforms.
 
+## Use WVM (version manager) to install latest versions (recommended)
+
+### Prerequisites
+
+ - Dart SDK 3.0 or later
+ - Git CLI
+
+### Steps
+
+- Get WVM from https://github.com/L12-MC/wvm
+- Make sure dart is in your PATH
+- CD into folder
+- Exexute Script ./wvm.sh (linux), wvm.bat (windows)
+
+*Now you can run wslang or wpm*
+
+## Manual Build
+
 ## Prerequisites
 
 - Dart SDK 3.0 or later

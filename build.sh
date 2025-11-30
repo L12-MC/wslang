@@ -14,15 +14,15 @@ PLATFORM=$(uname -s)
 case "$PLATFORM" in
     Linux*)
         echo "Detected platform: Linux"
-        OUTPUT="build/ws-linux"
+        OUTPUT="build/wslang"
         ;;
     Darwin*)
         echo "Detected platform: macOS"
-        OUTPUT="build/ws-macos"
+        OUTPUT="build/wslang"
         ;;
     MINGW*|MSYS*|CYGWIN*)
         echo "Detected platform: Windows"
-        OUTPUT="build/ws-windows.exe"
+        OUTPUT="build/wslang.exe"
         ;;
     *)
         echo "Unknown platform: $PLATFORM"
@@ -34,6 +34,7 @@ echo ""
 # Build for current platform
 echo "Building executable..."
 dart compile exe main.dart -o "$OUTPUT"
+dart compile exe main.dart -o "build/wslang.exe"
 
 if [ $? -eq 0 ]; then
     echo ""
