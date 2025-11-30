@@ -2,7 +2,7 @@
 # This demonstrates the new input() and error handling features
 
 print("╔════════════════════════════════════════╗")
-print("║  Well.. Simple v1.0 Feature Showcase  ║")
+print("║  Well.. Simple v1.0 Feature Showcase   ║")
 print("╚════════════════════════════════════════╝")
 print("")
 
