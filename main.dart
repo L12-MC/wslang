@@ -2,7 +2,7 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
 
-const String VERSION = "1.0.2";
+const String VERSION = "1.0.3";
 
 Map<String, dynamic> variables = {};
 Map<String, Function> functions = {};
@@ -10,6 +10,7 @@ Map<String, dynamic> classes = {};
 String? currentError;
 dynamic returnValue;
 bool hasReturned = false;
+bool shouldBreak = false;
 
 // Error reporting
 int currentLineNum = 0;
@@ -430,6 +431,67 @@ List<dynamic> parseList(String listStr) {
   return result;
 }
 
+// Evaluate string methods like .length() and .letter(index)
+dynamic evaluateStringMethod(String expression) {
+  RegExp lengthPattern = RegExp(r'(.+)\.length\(\)');
+  RegExp letterPattern = RegExp(r'(.+)\.letter\((.+)\)');
+  
+  Match? lengthMatch = lengthPattern.firstMatch(expression);
+  if (lengthMatch != null) {
+    String target = lengthMatch.group(1)!.trim();
+    String strValue;
+    
+    if ((target.startsWith('"') && target.endsWith('"')) || 
+        (target.startsWith("'") && target.endsWith("'"))) {
+      strValue = target.substring(1, target.length - 1);
+    } else if (variables.containsKey(target)) {
+      strValue = variables[target].toString();
+    } else {
+      throw Exception("Variable '$target' not defined");
+    }
+    
+    return strValue.length;
+  }
+  
+  Match? letterMatch = letterPattern.firstMatch(expression);
+  if (letterMatch != null) {
+    String target = letterMatch.group(1)!.trim();
+    String indexStr = letterMatch.group(2)!.trim();
+    String strValue;
+    
+    if ((target.startsWith('"') && target.endsWith('"')) || 
+        (target.startsWith("'") && target.endsWith("'"))) {
+      strValue = target.substring(1, target.length - 1);
+    } else if (variables.containsKey(target)) {
+      strValue = variables[target].toString();
+    } else {
+      throw Exception("Variable '$target' not defined");
+    }
+    
+    // Parse index - could be a number or a variable
+    int index;
+    try {
+      index = int.parse(indexStr);
+    } catch (_) {
+      // Try as a variable
+      if (variables.containsKey(indexStr)) {
+        dynamic varValue = variables[indexStr];
+        index = (varValue is num) ? varValue.toInt() : int.parse(varValue.toString());
+      } else {
+        throw Exception("Variable '$indexStr' not defined");
+      }
+    }
+    
+    if (index >= 0 && index < strValue.length) {
+      return strValue[index];
+    } else {
+      throw Exception("Index $index out of range");
+    }
+  }
+  
+  throw Exception("Invalid string method");
+}
+
 // Find the next function call in the expression using proper parenthesis matching
 Map<String, dynamic>? findNextFunctionCall(String expression) {
   RegExp funcNamePattern = RegExp(r'\w+\(');
@@ -635,7 +697,7 @@ bool evaluateCondition(String condition) {
 
 void executeBlock(List<String> commands) {
   int i = 0;
-  while (i < commands.length && !hasReturned) {
+  while (i < commands.length && !hasReturned && !shouldBreak) {
     String cmd = commands[i];
     
     // Handle multi-line blocks (while, if, for, try, etc.)
@@ -695,6 +757,12 @@ void processCommand(String cmd) {
     } else {
       returnValue = null;
     }
+    return;
+  }
+  
+  // Handle break statement
+  if (cmd == 'break') {
+    shouldBreak = true;
     return;
   }
   
@@ -762,17 +830,23 @@ void processCommand(String cmd) {
         print(value);
       }
     } catch (e) {
-      // Try to evaluate as an expression (e.g., i * i, x + y, etc.)
+      // Try string methods
       try {
-        String preprocessed = preprocessExpression(content);
-        List<String> tokens = tokenizeExpression(preprocessed);
-        double result = evaluateExpression(tokens);
+        dynamic result = evaluateStringMethod(content);
         print(result);
       } catch (e2) {
-        if (variables.containsKey(content)) {
-          print(variables[content]);
-        } else {
-          print("Error: Invalid print argument.");
+        // Try to evaluate as an expression (e.g., i * i, x + y, etc.)
+        try {
+          String preprocessed = preprocessExpression(content);
+          List<String> tokens = tokenizeExpression(preprocessed);
+          double result = evaluateExpression(tokens);
+          print(result);
+        } catch (e3) {
+          if (variables.containsKey(content)) {
+            print(variables[content]);
+          } else {
+            print("Error: Invalid print argument.");
+          }
         }
       }
     }
@@ -1046,6 +1120,57 @@ void processCommand(String cmd) {
   }
   
   // Check for variable assignment
+  // Handle compound assignment operators (+=, -=)
+  if (cmd.contains('+=') || cmd.contains('-=')) {
+    String operator = cmd.contains('+=') ? '+=' : '-=';
+    int opIdx = cmd.indexOf(operator);
+    String varName = cmd.substring(0, opIdx).trim();
+    String expression = cmd.substring(opIdx + 2).trim();
+    
+    if (!variables.containsKey(varName)) {
+      reportError(
+        "Variable '$varName' not defined",
+        line: cmd,
+        suggestion: "Initialize the variable before using $operator"
+      );
+      return;
+    }
+    
+    try {
+      dynamic currentValue = variables[varName];
+      dynamic addValue;
+      
+      // Try to parse the expression
+      try {
+        String preprocessed = preprocessExpression(expression);
+        List<String> tokens = tokenizeExpression(preprocessed);
+        addValue = evaluateExpression(tokens);
+      } catch (_) {
+        try {
+          addValue = parseValue(expression);
+        } catch (_) {
+          addValue = double.parse(expression);
+        }
+      }
+      
+      // Perform the operation
+      if (operator == '+=') {
+        variables[varName] = (currentValue is num ? currentValue : double.parse(currentValue.toString())) + 
+                             (addValue is num ? addValue : double.parse(addValue.toString()));
+      } else {
+        variables[varName] = (currentValue is num ? currentValue : double.parse(currentValue.toString())) - 
+                             (addValue is num ? addValue : double.parse(addValue.toString()));
+      }
+    } catch (e) {
+      reportError(
+        "Error in compound assignment",
+        line: cmd,
+        suggestion: "Ensure both values are numbers.\n  Error: $e"
+      );
+    }
+    return;
+  }
+  
   if (cmd.contains('=') && !cmd.contains('==') && !cmd.contains('<=') && !cmd.contains('>=') && !cmd.contains('!=')) {
     int eqIdx = cmd.indexOf('=');
     String varName = cmd.substring(0, eqIdx).trim();
@@ -1093,6 +1218,16 @@ void processCommand(String cmd) {
     if (expression == 'true' || expression == 'false') {
       variables[varName] = expression == 'true';
       return;
+    }
+    
+    // Handle string methods
+    if (expression.contains('.length()') || expression.contains('.letter(')) {
+      try {
+        variables[varName] = evaluateStringMethod(expression);
+        return;
+      } catch (e) {
+        // Fall through to other handlers
+      }
     }
     
     // Handle list indexing
@@ -1492,7 +1627,7 @@ void executeFile(String filename) {
       return;
     }
     
-    print("> Executing $resolvedPath");
+    // Removed logging: print("> Executing $resolvedPath");
     List<String> lines = file.readAsLinesSync();
     
     // Set current file for error reporting
@@ -1538,7 +1673,7 @@ void executeFile(String filename) {
       }
     }
     
-    print("> Finished executing $filename");
+    // Removed logging: print("> Finished executing $filename");
   } catch (e) {
     print("Error executing file: $e");
   }
@@ -1573,13 +1708,18 @@ void processMultiLineCommand(List<String> block) {
       returnValue = null;
       return result;
     };
-    print("> Function $funcName defined");
+    // Removed logging: print("> Function $funcName defined");
   } else if (firstLine.startsWith('while ')) {
     String condition = firstLine.substring(6).trim();
     List<String> body = block.sublist(1);
     
+    shouldBreak = false;  // Reset break flag
     while (evaluateCondition(condition)) {
       executeBlock(body);
+      if (shouldBreak) {
+        shouldBreak = false;  // Reset after breaking
+        break;
+      }
     }
   } else if (firstLine.startsWith('if ')) {
     String condition = firstLine.substring(3).trim();
@@ -1614,9 +1754,14 @@ void processMultiLineCommand(List<String> block) {
       int end = int.parse(match.group(3)!);
       List<String> body = block.sublist(1);
       
+      shouldBreak = false;  // Reset break flag
       for (int i = start; i < end; i++) {
         variables[varName] = i.toDouble();
         executeBlock(body);
+        if (shouldBreak) {
+          shouldBreak = false;  // Reset after breaking
+          break;
+        }
       }
     }
   } else if (firstLine.startsWith('try')) {
@@ -1816,8 +1961,13 @@ void main(List<String> args) {
         body.add(line!);
       }
       
+      shouldBreak = false;  // Reset break flag
       while (evaluateCondition(condition)) {
         executeBlock(body);
+        if (shouldBreak) {
+          shouldBreak = false;  // Reset after breaking
+          break;
+        }
       }
       continue;
     }
@@ -1840,9 +1990,14 @@ void main(List<String> args) {
           body.add(line!);
         }
         
+        shouldBreak = false;  // Reset break flag
         for (int i = start; i < end; i++) {
           variables[varName] = i.toDouble();
           executeBlock(body);
+          if (shouldBreak) {
+            shouldBreak = false;  // Reset after breaking
+            break;
+          }
         }
         continue;
       }
