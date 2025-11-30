@@ -1,4 +1,4 @@
-# Well Simple Language v1.0
+# Well Simple Language v1.0.3
 
 **Well Simple** - A Well... Simple yet powerful scripting language with graphics, JSON, cryptography, and file I/O capabilities.
 
