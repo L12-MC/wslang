@@ -1195,13 +1195,39 @@ void processCommand(String cmd) {
       filename = cmd.substring(7).trim();
     }
 
+    // If importing a package by name (no slash and no extension), run all .wsx in src/
+    if (!filename.contains('/') &&
+        !filename.endsWith('.ws') &&
+        !filename.endsWith('.wsx') &&
+        !filename.endsWith('.repl')) {
+      var packages = PackageManager.loadInstalledPackages();
+      if (packages.containsKey(filename)) {
+        String pkgPath = packages[filename]['path'];
+        String srcDir = '$pkgPath/src';
+        if (Directory(srcDir).existsSync()) {
+          var files = Directory(srcDir)
+              .listSync()
+              .whereType<File>()
+              .where((f) => f.path.toLowerCase().endsWith('.wsx'))
+              .toList();
+          for (var f in files) {
+            executeFile(f.path);
+          }
+          return;
+        }
+      }
+    }
+
+    // Specific file import: add default extension if missing
     if (!filename.endsWith('.ws') &&
         !filename.endsWith('.wsx') &&
         !filename.endsWith('.repl')) {
       filename += '.ws';
     }
 
-    executeFile(filename);
+    // Resolve via PackageManager (handles src/ and .wsx mapping)
+    String? resolved = PackageManager.resolvePackagePath(filename);
+    executeFile(resolved ?? filename);
     return;
   }
 
@@ -1222,6 +1248,78 @@ void processCommand(String cmd) {
     }
 
     executeFile(filename);
+    return;
+  }
+
+  // From-import: from <package> import <module>
+  if (cmd.startsWith('from ')) {
+    RegExp r = RegExp(r'^from\s+(\w+)\s+import\s+(\w+)$');
+    Match? m = r.firstMatch(cmd.trim());
+    if (m == null) {
+      reportError('Invalid from-import syntax',
+          line: cmd, suggestion: 'Use: from <package> import <module>');
+      return;
+    }
+    String pkgName = m.group(1)!;
+    String moduleName = m.group(2)!;
+
+    var packages = PackageManager.loadInstalledPackages();
+    if (!packages.containsKey(pkgName)) {
+      reportError("Package '$pkgName' not installed", line: cmd);
+      return;
+    }
+    String pkgPath = packages[pkgName]['path'];
+    String assignPath = '$pkgPath/assignment.json';
+    if (!File(assignPath).existsSync()) {
+      reportError("assignment.json not found for package '$pkgName'",
+          line: cmd);
+      return;
+    }
+    try {
+      var jsonMap = jsonDecode(File(assignPath).readAsStringSync());
+      Map modules = (jsonMap['modules'] ?? {}) as Map;
+      if (!modules.containsKey(moduleName)) {
+        reportError("Module '$moduleName' not found in assignment.json",
+            line: cmd);
+        return;
+      }
+      String relFile = modules[moduleName].toString();
+      String fullPath = '$pkgPath/src/$relFile';
+      if (!fullPath.endsWith('.ws') && !fullPath.endsWith('.wsx')) {
+        fullPath += '.wsx';
+      }
+      if (!File(fullPath).existsSync()) {
+        reportError("Module file not found: $fullPath", line: cmd);
+        return;
+      }
+      executeFile(fullPath);
+    } catch (e) {
+      reportError('Error reading assignment.json: $e', line: cmd);
+    }
+    return;
+  }
+
+  // command(cmd) - run a system command and return exit code
+  if (cmd.startsWith('command(') && cmd.endsWith(')')) {
+    String arg = cmd.substring(8, cmd.length - 1).trim();
+    String commandStr = arg;
+    try {
+      commandStr = parseValue(arg).toString();
+    } catch (_) {}
+
+    try {
+      ProcessResult res = Process.runSync(Platform.isWindows ? 'cmd' : 'bash',
+          [Platform.isWindows ? '/C' : '-lc', commandStr]);
+      // Standalone call prints output and status
+      String out = res.stdout.toString().trim();
+      String err = res.stderr.toString().trim();
+      if (out.isNotEmpty) print(out);
+      if (err.isNotEmpty) print(err);
+      print(res.exitCode);
+    } catch (e) {
+      print('Command error: $e');
+      print(1);
+    }
     return;
   }
 

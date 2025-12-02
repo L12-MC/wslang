@@ -8,6 +8,9 @@ libs/
 .dart_tool/
 ws_packages/
 
+IMPLEMENTATION_SUMMARY.md
+ws_packages.json
+
 # Scripts
 wpm.dart
 wvm.dart
