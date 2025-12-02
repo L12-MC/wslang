@@ -2,7 +2,7 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
 
-const String VERSION = "1.0.3";
+const String VERSION = "1.1.0";
 
 Map<String, dynamic> variables = {};
 Map<String, Function> functions = {};
@@ -21,7 +21,7 @@ void reportError(String message,
     {String? line, int? lineNum, String? suggestion}) {
   print("");
   print("━" * 60);
-  print("❌ ERROR");
+  print("ERROR");
   print("━" * 60);
 
   if (currentFile.isNotEmpty) {
@@ -48,7 +48,7 @@ void reportError(String message,
 
   if (suggestion != null) {
     print("");
-    print("💡 Suggestion:");
+    print("Suggestion:");
     print("  $suggestion");
   }
 
