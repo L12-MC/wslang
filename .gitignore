@@ -10,6 +10,7 @@ ws_packages/
 
 IMPLEMENTATION_SUMMARY.md
 ws_packages.json
+.vscode/
 
 # Scripts
 wpm.dart
