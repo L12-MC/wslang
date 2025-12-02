@@ -26,7 +26,7 @@ cd vs-ext
 npm install -g @vscode/vsce
 
 # Create .vsix package
-vsce package
+npx @vscode/vsce package
 
 # Install the .vsix in VS Code:
 # 1. Ctrl+Shift+P (Cmd+Shift+P on Mac)

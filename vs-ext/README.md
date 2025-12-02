@@ -13,7 +13,7 @@ This extension provides syntax highlighting and language support for Well.. Simp
 ## Supported File Extensions
 
 - `.ws` - Well.. Simple script files
-- `.repl` - Well.. Simple REPL files
+- `.wsx` - Well.. Simple Library files
 
 ## Language Features
 
