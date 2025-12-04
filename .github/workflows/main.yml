@@ -1,0 +1,45 @@
+name: Release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release:
+    name: Build and Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+      - uses: actions/checkout@v4
+
+      - name: Prepare artifacts
+        run: |
+          mkdir artifacts
+          cp build/wslang-linux artifacts/wslang
+          cp build/wslang-win.exe artifacts/wslang.exe
+          ls -l artifacts
+
+      - name: Read release notes
+        id: notes
+        run: |
+          notes="$(cat release.md)"
+          notes="${notes//'%'/%25}"
+          notes="${notes//$'\n'/%0A}"
+          notes="${notes//$'\r'/%0D}"
+          echo "content=$notes" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          body: ${{ steps.notes.outputs.content }}
+          files: |
+            artifacts/wslang
+            artifacts/wslang.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
