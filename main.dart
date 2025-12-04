@@ -2,7 +2,7 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
 
-const String VERSION = "1.1.0";
+const String VERSION = "1.1.1";
 
 Map<String, dynamic> variables = {};
 Map<String, Function> functions = {};
@@ -1802,6 +1802,25 @@ void processCommand(String cmd) {
   }
 
   // Evaluate expression (only for direct expressions, not assignments)
+  // Try string concatenation first (handles literals and input())
+  if (cmd.contains('+') &&
+      (cmd.contains('"') || cmd.contains("'") || cmd.contains('input('))) {
+    var strResult = evaluateStringExpression(cmd);
+    if (strResult != null) {
+      print(strResult);
+      return;
+    }
+  }
+
+  // Try simple literal/variable/object value
+  try {
+    dynamic val = parseValue(cmd);
+    print(val);
+    return;
+  } catch (_) {
+    // fall through to numeric expression handling
+  }
+
   List<String> tokens = tokenizeExpression(cmd);
 
   try {
@@ -2167,6 +2186,7 @@ void processMultiLineCommand(List<String> block) {
       // Handle property definitions (name = value)
       if (line.contains('=') &&
           !line.startsWith('def ') &&
+          !_isMethodStart(line) &&
           !line.contains('==')) {
         int eqIdx = line.indexOf('=');
         String propName = line.substring(0, eqIdx).trim();
@@ -2179,8 +2199,8 @@ void processMultiLineCommand(List<String> block) {
         }
         i++;
       }
-      // Handle method definitions
-      else if (line.startsWith('def ')) {
+      // Handle method definitions (allow missing 'def' prefix)
+      else if (line.startsWith('def ') || _isMethodStart(line)) {
         // Find the end of this method
         List<String> methodBlock = [line];
         i++;
@@ -2191,12 +2211,7 @@ void processMultiLineCommand(List<String> block) {
           String trimmed = methodLine.trim();
 
           // Increment depth for any block-starting keyword
-          if (trimmed.startsWith('def ') ||
-              trimmed.startsWith('if ') ||
-              trimmed.startsWith('while ') ||
-              trimmed.startsWith('for ') ||
-              trimmed.startsWith('try') ||
-              trimmed.startsWith('class ')) {
+          if (_startsBlock(trimmed) || _isMethodStart(trimmed)) {
             depth++;
             methodBlock.add(methodLine);
           } else if (trimmed == 'end') {
@@ -2210,8 +2225,13 @@ void processMultiLineCommand(List<String> block) {
           i++;
         }
 
-        // Parse method definition
-        String methodDef = methodBlock[0].substring(4);
+        // Parse method definition (normalize to start with 'def ')
+        String methodLine0 = methodBlock[0].trim();
+        if (!methodLine0.startsWith('def ')) {
+          methodLine0 = 'def ' + methodLine0;
+        }
+
+        String methodDef = methodLine0.substring(4);
         int parenIdx = methodDef.indexOf('(');
         String methodName = methodDef.substring(0, parenIdx).trim();
         int endParen = methodDef.indexOf(')');
@@ -2405,6 +2425,22 @@ List<String> tokenizeExpression(String expression) {
   return tokens;
 }
 
+// Helper to detect the start of a block structure in REPL input
+bool _startsBlock(String trimmed) {
+  return trimmed.startsWith('def ') ||
+      trimmed.startsWith('if ') ||
+      trimmed.startsWith('while ') ||
+      trimmed.startsWith('for ') ||
+      trimmed.startsWith('try') ||
+      trimmed.startsWith('class ');
+}
+
+// Detects method start lines, allowing missing 'def' prefix (e.g., init(r))
+bool _isMethodStart(String trimmed) {
+  if (trimmed.startsWith('def ')) return true;
+  return RegExp(r'^[A-Za-z_]\w*\s*\(.*\)$').hasMatch(trimmed);
+}
+
 void main(List<String> args) {
   // Check if a file was passed as argument
   if (args.isNotEmpty) {
@@ -2471,6 +2507,52 @@ void main(List<String> args) {
       continue;
     }
 
+    // Handle class definition
+    if (cmd.startsWith('class ')) {
+      List<String> block = [cmd];
+      int depth = 0; // Tracks nested control blocks
+      int methodDepth = 0; // Tracks method bodies so class doesn't close early
+      while (true) {
+        stdout.write("... ");
+        String? line = stdin.readLineSync();
+        if (line == null) break;
+        String trimmed = line.trim();
+
+        // Method start lines may omit the 'def' prefix; treat them as blocks
+        if (_isMethodStart(trimmed)) {
+          methodDepth++;
+          block.add(line);
+          continue;
+        }
+
+        if (_startsBlock(trimmed)) {
+          depth++;
+          block.add(line);
+          continue;
+        }
+
+        if (trimmed == 'end') {
+          if (depth > 0) {
+            depth--;
+            block.add(line);
+            continue;
+          }
+          if (methodDepth > 0) {
+            methodDepth--;
+            block.add(line);
+            continue;
+          }
+
+          block.add(line);
+          break;
+        }
+
+        block.add(line);
+      }
+      processMultiLineCommand(block);
+      continue;
+    }
+
     // Handle function call
     if (cmd.contains('(') && cmd.endsWith(')') && !cmd.startsWith('print(')) {
       int parenIdx = cmd.indexOf('(');
@@ -2496,23 +2578,49 @@ void main(List<String> args) {
       List<String> elseBody = [];
       bool inElse = false;
 
+      int depth = 0;
       while (true) {
         stdout.write("... ");
         String? line = stdin.readLineSync();
-        if (line?.trim() == 'end') break;
-        if (line?.trim().startsWith('else') == true) {
+        if (line == null) break;
+        String trimmed = line.trim();
+
+        if (_startsBlock(trimmed)) {
+          depth++;
+          if (inElse)
+            elseBody.add(line);
+          else
+            ifBody.add(line);
+          continue;
+        }
+
+        if (trimmed == 'end') {
+          if (depth == 0) {
+            break;
+          } else {
+            depth--;
+            if (inElse)
+              elseBody.add(line);
+            else
+              ifBody.add(line);
+            continue;
+          }
+        }
+
+        if (trimmed.startsWith('else')) {
           inElse = true;
           continue;
         }
-        if (line?.trim().startsWith('elif') == true) {
+        if (trimmed.startsWith('elif')) {
           print("elif not fully supported yet, use else");
           inElse = true;
           continue;
         }
+
         if (inElse) {
-          elseBody.add(line!);
+          elseBody.add(line);
         } else {
-          ifBody.add(line!);
+          ifBody.add(line);
         }
       }
 
@@ -2532,11 +2640,30 @@ void main(List<String> args) {
       }
 
       List<String> body = [];
+      int depth = 0;
       while (true) {
         stdout.write("... ");
         String? line = stdin.readLineSync();
-        if (line?.trim() == 'end') break;
-        body.add(line!);
+        if (line == null) break;
+        String trimmed = line.trim();
+
+        if (_startsBlock(trimmed)) {
+          depth++;
+          body.add(line);
+          continue;
+        }
+
+        if (trimmed == 'end') {
+          if (depth == 0) {
+            break;
+          } else {
+            depth--;
+            body.add(line);
+            continue;
+          }
+        }
+
+        body.add(line);
       }
 
       shouldBreak = false; // Reset break flag
@@ -2561,11 +2688,30 @@ void main(List<String> args) {
         int end = int.parse(match.group(3)!);
 
         List<String> body = [];
+        int depth = 0;
         while (true) {
           stdout.write("... ");
           String? line = stdin.readLineSync();
-          if (line?.trim() == 'end') break;
-          body.add(line!);
+          if (line == null) break;
+          String trimmed = line.trim();
+
+          if (_startsBlock(trimmed)) {
+            depth++;
+            body.add(line);
+            continue;
+          }
+
+          if (trimmed == 'end') {
+            if (depth == 0) {
+              break;
+            } else {
+              depth--;
+              body.add(line);
+              continue;
+            }
+          }
+
+          body.add(line);
         }
 
         shouldBreak = false; // Reset break flag
@@ -2588,12 +2734,37 @@ void main(List<String> args) {
       List<String> finallyBody = [];
       String currentBlock = 'try';
 
+      int depth = 0;
       while (true) {
         stdout.write("... ");
         String? line = stdin.readLineSync();
-        String trimmed = line?.trim() ?? '';
+        if (line == null) break;
+        String trimmed = line.trim();
 
-        if (trimmed == 'end') break;
+        if (_startsBlock(trimmed)) {
+          depth++;
+          if (currentBlock == 'try')
+            tryBody.add(line);
+          else if (currentBlock == 'except')
+            exceptBody.add(line);
+          else if (currentBlock == 'finally') finallyBody.add(line);
+          continue;
+        }
+
+        if (trimmed == 'end') {
+          if (depth == 0) {
+            break;
+          } else {
+            depth--;
+            if (currentBlock == 'try')
+              tryBody.add(line);
+            else if (currentBlock == 'except')
+              exceptBody.add(line);
+            else if (currentBlock == 'finally') finallyBody.add(line);
+            continue;
+          }
+        }
+
         if (trimmed == 'except') {
           currentBlock = 'except';
           continue;
@@ -2604,11 +2775,11 @@ void main(List<String> args) {
         }
 
         if (currentBlock == 'try') {
-          tryBody.add(line!);
+          tryBody.add(line);
         } else if (currentBlock == 'except') {
-          exceptBody.add(line!);
+          exceptBody.add(line);
         } else if (currentBlock == 'finally') {
-          finallyBody.add(line!);
+          finallyBody.add(line);
         }
       }
 
