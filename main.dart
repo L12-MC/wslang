@@ -2,7 +2,7 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
 
-const String VERSION = "1.1.1";
+const String VERSION = "1.2.0";
 
 Map<String, dynamic> variables = {};
 Map<String, Function> functions = {};
@@ -241,6 +241,234 @@ class PackageManager {
     return null;
   }
 }
+
+// GUI library for visual window rendering
+class GuiWindow {
+  int width = 800;
+  int height = 600;
+  String title = "Well.. Simple GUI";
+  List<Map<String, dynamic>> widgets = [];
+  bool isVisible = false;
+  String? htmlFilePath;
+  HttpServer? server;
+  int serverPort = 8765;
+
+  void createWindow(int w, int h, String t) {
+    width = w;
+    height = h;
+    title = t;
+    widgets.clear();
+    print("GUI Window configured: ${width}x$height - $title");
+  }
+
+  void addButton(double x, double y, double w, double h, String text) {
+    widgets.add({
+      'type': 'button',
+      'x': x,
+      'y': y,
+      'width': w,
+      'height': h,
+      'text': text
+    });
+  }
+
+  void addLabel(double x, double y, String text) {
+    widgets.add({'type': 'label', 'x': x, 'y': y, 'text': text});
+  }
+
+  void addInput(double x, double y, double w, double h) {
+    widgets.add({'type': 'input', 'x': x, 'y': y, 'width': w, 'height': h});
+  }
+
+  String generateHTML() {
+    StringBuffer html = StringBuffer();
+    html.writeln('<!DOCTYPE html>');
+    html.writeln('<html>');
+    html.writeln('<head>');
+    html.writeln('  <meta charset="UTF-8">');
+    html.writeln('  <title>$title</title>');
+    html.writeln('  <style>');
+    html.writeln('    body {');
+    html.writeln('      margin: 0;');
+    html.writeln('      padding: 0;');
+    html.writeln('      font-family: Arial, sans-serif;');
+    html.writeln('      overflow: hidden;');
+    html.writeln('    }');
+    html.writeln('    #gui-container {');
+    html.writeln('      position: relative;');
+    html.writeln('      width: ${width}px;');
+    html.writeln('      height: ${height}px;');
+    html.writeln('      background: #f0f0f0;');
+    html.writeln('      border: 1px solid #ccc;');
+    html.writeln('      margin: 20px auto;');
+    html.writeln('      box-shadow: 0 2px 10px rgba(0,0,0,0.1);');
+    html.writeln('    }');
+    html.writeln('    .widget {');
+    html.writeln('      position: absolute;');
+    html.writeln('      box-sizing: border-box;');
+    html.writeln('    }');
+    html.writeln('    .button {');
+    html.writeln('      background: #4CAF50;');
+    html.writeln('      color: white;');
+    html.writeln('      border: none;');
+    html.writeln('      border-radius: 4px;');
+    html.writeln('      font-size: 14px;');
+    html.writeln('      cursor: pointer;');
+    html.writeln('      display: flex;');
+    html.writeln('      align-items: center;');
+    html.writeln('      justify-content: center;');
+    html.writeln('    }');
+    html.writeln('    .button:hover {');
+    html.writeln('      background: #45a049;');
+    html.writeln('    }');
+    html.writeln('    .label {');
+    html.writeln('      color: #333;');
+    html.writeln('      font-size: 14px;');
+    html.writeln('      display: flex;');
+    html.writeln('      align-items: center;');
+    html.writeln('    }');
+    html.writeln('    .input {');
+    html.writeln('      border: 1px solid #ccc;');
+    html.writeln('      border-radius: 4px;');
+    html.writeln('      padding: 8px;');
+    html.writeln('      font-size: 14px;');
+    html.writeln('    }');
+    html.writeln('    .input:focus {');
+    html.writeln('      outline: none;');
+    html.writeln('      border-color: #4CAF50;');
+    html.writeln('    }');
+    html.writeln('    #title-bar {');
+    html.writeln('      background: #2196F3;');
+    html.writeln('      color: white;');
+    html.writeln('      padding: 12px;');
+    html.writeln('      font-weight: bold;');
+    html.writeln('      text-align: center;');
+    html.writeln('      margin-bottom: 20px;');
+    html.writeln('    }');
+    html.writeln('  </style>');
+    html.writeln('</head>');
+    html.writeln('<body>');
+    html.writeln('  <div id="title-bar">$title</div>');
+    html.writeln('  <div id="gui-container">');
+
+    for (var widget in widgets) {
+      String type = widget['type'];
+      double x = widget['x'];
+      double y = widget['y'];
+
+      if (type == 'button') {
+        double w = widget['width'];
+        double h = widget['height'];
+        String text = widget['text'];
+        html.writeln(
+            '    <button class="widget button" style="left: ${x}px; top: ${y}px; width: ${w}px; height: ${h}px;">$text</button>');
+      } else if (type == 'label') {
+        String text = widget['text'];
+        html.writeln(
+            '    <div class="widget label" style="left: ${x}px; top: ${y}px;">$text</div>');
+      } else if (type == 'input') {
+        double w = widget['width'];
+        double h = widget['height'];
+        html.writeln(
+            '    <input class="widget input" type="text" style="left: ${x}px; top: ${y}px; width: ${w}px; height: ${h}px;" />');
+      }
+    }
+
+    html.writeln('  </div>');
+    html.writeln('</body>');
+    html.writeln('</html>');
+    return html.toString();
+  }
+
+  Future<void> show() async {
+    isVisible = true;
+
+    // Generate HTML content
+    String htmlContent = generateHTML();
+
+    try {
+      // Start a simple HTTP server
+      server = await HttpServer.bind('127.0.0.1', serverPort);
+      print("GUI Window starting on http://127.0.0.1:$serverPort");
+
+      // Handle requests
+      server!.listen((HttpRequest request) {
+        request.response
+          ..headers.contentType = ContentType.html
+          ..write(htmlContent)
+          ..close();
+      });
+
+      // Open in default browser
+      String url = 'http://127.0.0.1:$serverPort';
+      if (Platform.isWindows) {
+        Process.run('cmd', ['/c', 'start', url]);
+      } else if (Platform.isMacOS) {
+        Process.run('open', [url]);
+      } else if (Platform.isLinux) {
+        Process.run('xdg-open', [url]);
+      }
+
+      print("GUI Window opened in browser");
+    } catch (e) {
+      print("Error creating GUI window: $e");
+      // Fallback to file-based approach
+      await _showViaFile();
+    }
+  }
+
+  Future<void> _showViaFile() async {
+    // Fallback: create HTML file and open it
+    String htmlContent = generateHTML();
+    htmlFilePath = 'ws_gui_${DateTime.now().millisecondsSinceEpoch}.html';
+
+    File htmlFile = File(htmlFilePath!);
+    await htmlFile.writeAsString(htmlContent);
+
+    print("GUI Window created: $htmlFilePath");
+
+    // Open in default browser
+    String fullPath = htmlFile.absolute.path;
+    if (Platform.isWindows) {
+      Process.run('cmd', ['/c', 'start', fullPath]);
+    } else if (Platform.isMacOS) {
+      Process.run('open', [fullPath]);
+    } else if (Platform.isLinux) {
+      Process.run('xdg-open', [fullPath]);
+    }
+
+    print("GUI Window opened in browser");
+  }
+
+  Future<void> close() async {
+    isVisible = false;
+
+    // Close HTTP server if running
+    if (server != null) {
+      await server!.close();
+      server = null;
+      print("GUI Window server closed");
+    }
+
+    // Clean up HTML file if it was created
+    if (htmlFilePath != null) {
+      try {
+        File htmlFile = File(htmlFilePath!);
+        if (await htmlFile.exists()) {
+          await htmlFile.delete();
+          print("GUI Window file cleaned up");
+        }
+      } catch (e) {
+        // Ignore cleanup errors
+      }
+      htmlFilePath = null;
+    }
+
+    print("GUI Window closed");
+  }
+}
+
+GuiWindow guiWindow = GuiWindow();
 
 // Graphics canvas
 class Canvas {
@@ -1299,9 +1527,11 @@ void processCommand(String cmd) {
     return;
   }
 
-  // command(cmd) - run a system command and return exit code
-  if (cmd.startsWith('command(') && cmd.endsWith(')')) {
-    String arg = cmd.substring(8, cmd.length - 1).trim();
+  // command(cmd) or os.command(cmd) - run a system command and return exit code
+  if ((cmd.startsWith('command(') || cmd.startsWith('os.command(')) &&
+      cmd.endsWith(')')) {
+    int startIdx = cmd.startsWith('os.command(') ? 11 : 8;
+    String arg = cmd.substring(startIdx, cmd.length - 1).trim();
     String commandStr = arg;
     try {
       commandStr = parseValue(arg).toString();
@@ -1320,6 +1550,70 @@ void processCommand(String cmd) {
       print('Command error: $e');
       print(1);
     }
+    return;
+  }
+
+  // sleep(ms) - pause execution for specified milliseconds
+  if (cmd.startsWith('sleep(') && cmd.endsWith(')')) {
+    String arg = cmd.substring(6, cmd.length - 1).trim();
+    try {
+      int ms = parseValue(arg) is num
+          ? (parseValue(arg) as num).toInt()
+          : int.parse(arg);
+      sleep(Duration(milliseconds: ms));
+    } catch (e) {
+      reportError('Invalid sleep duration',
+          line: cmd, suggestion: 'Use: sleep(1000) for 1 second');
+    }
+    return;
+  }
+
+  // subprocess.run(cmd) - run command synchronously and return result
+  if (cmd.startsWith('subprocess.run(') && cmd.endsWith(')')) {
+    String arg = cmd.substring(15, cmd.length - 1).trim();
+    String commandStr = arg;
+    try {
+      commandStr = parseValue(arg).toString();
+    } catch (_) {}
+
+    try {
+      ProcessResult res = Process.runSync(Platform.isWindows ? 'cmd' : 'bash',
+          [Platform.isWindows ? '/C' : '-lc', commandStr]);
+      print('stdout: ${res.stdout}');
+      print('stderr: ${res.stderr}');
+      print('exitCode: ${res.exitCode}');
+    } catch (e) {
+      print('Subprocess error: $e');
+    }
+    return;
+  }
+
+  // subprocess.start(cmd) - start command asynchronously (non-blocking)
+  if (cmd.startsWith('subprocess.start(') && cmd.endsWith(')')) {
+    String arg = cmd.substring(17, cmd.length - 1).trim();
+    String commandStr = arg;
+    try {
+      commandStr = parseValue(arg).toString();
+    } catch (_) {}
+
+    Process.start(Platform.isWindows ? 'cmd' : 'bash',
+        [Platform.isWindows ? '/C' : '-lc', commandStr]).then((process) {
+      print('Process started with PID: ${process.pid}');
+      process.stdout.transform(utf8.decoder).listen((data) {
+        print(data);
+      });
+      process.stderr.transform(utf8.decoder).listen((data) {
+        print(data);
+      });
+    }).catchError((e) {
+      print('Error starting subprocess: $e');
+    });
+    return;
+  }
+
+  // GUI commands
+  if (cmd.startsWith('gui.')) {
+    handleGuiCommand(cmd);
     return;
   }
 
@@ -2070,6 +2364,53 @@ void handleCanvasCommand(String cmd) {
   }
 }
 
+Future<void> handleGuiCommand(String cmd) async {
+  if (cmd.startsWith('gui.window(') && cmd.endsWith(')')) {
+    String args = cmd.substring(11, cmd.length - 1);
+    List<String> parts = splitArgs(args);
+    if (parts.length == 3) {
+      int w = (parseValue(parts[0]) as num).toInt();
+      int h = (parseValue(parts[1]) as num).toInt();
+      String title = parseValue(parts[2]).toString();
+      guiWindow.createWindow(w, h, title);
+    }
+  } else if (cmd.startsWith('gui.button(') && cmd.endsWith(')')) {
+    String args = cmd.substring(11, cmd.length - 1);
+    List<String> parts = splitArgs(args);
+    if (parts.length == 5) {
+      double x = (parseValue(parts[0]) as num).toDouble();
+      double y = (parseValue(parts[1]) as num).toDouble();
+      double w = (parseValue(parts[2]) as num).toDouble();
+      double h = (parseValue(parts[3]) as num).toDouble();
+      String text = parseValue(parts[4]).toString();
+      guiWindow.addButton(x, y, w, h, text);
+    }
+  } else if (cmd.startsWith('gui.label(') && cmd.endsWith(')')) {
+    String args = cmd.substring(10, cmd.length - 1);
+    List<String> parts = splitArgs(args);
+    if (parts.length == 3) {
+      double x = (parseValue(parts[0]) as num).toDouble();
+      double y = (parseValue(parts[1]) as num).toDouble();
+      String text = parseValue(parts[2]).toString();
+      guiWindow.addLabel(x, y, text);
+    }
+  } else if (cmd.startsWith('gui.input(') && cmd.endsWith(')')) {
+    String args = cmd.substring(10, cmd.length - 1);
+    List<String> parts = splitArgs(args);
+    if (parts.length == 4) {
+      double x = (parseValue(parts[0]) as num).toDouble();
+      double y = (parseValue(parts[1]) as num).toDouble();
+      double w = (parseValue(parts[2]) as num).toDouble();
+      double h = (parseValue(parts[3]) as num).toDouble();
+      guiWindow.addInput(x, y, w, h);
+    }
+  } else if (cmd == 'gui.show()' || cmd == 'gui.show') {
+    await guiWindow.show();
+  } else if (cmd == 'gui.close()' || cmd == 'gui.close') {
+    await guiWindow.close();
+  }
+}
+
 void printHelp() {
   print("\n=== Well.. Simple v$VERSION Help ===");
   print("Variables: x = 10, name = \"Alice\", list = [1, 2, 3]");
@@ -2086,6 +2427,11 @@ void printHelp() {
   print("        encode.base64(text), decode.base64(text)");
   print("Packages: pkg.install(\"git-url\", \"name\")");
   print("          pkg.list(), pkg.remove(\"name\")");
+  print("System: os.command(cmd), command(cmd), sleep(ms)");
+  print("        subprocess.run(cmd), subprocess.start(cmd)");
+  print("GUI: gui.window(w,h,title), gui.button(x,y,w,h,text)");
+  print("     gui.label(x,y,text), gui.input(x,y,w,h)");
+  print("     gui.show(), gui.close()");
   print("Version: version");
   print("Canvas: canvas.clear(), canvas.drawCircle(x,y,r,color)");
   print("        canvas.drawRectangle(x,y,w,h,color)");

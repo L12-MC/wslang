@@ -13,26 +13,13 @@ if [ ! -f "package.json" ]; then
     exit 1
 fi
 
-echo "Step 1: Converting SVG icon to PNG..."
-if command -v convert &> /dev/null; then
-    convert -background none -size 128x128 images/wslang.svg images/wslang.png
-    echo "✓ Icon converted successfully using ImageMagick"
-elif command -v inkscape &> /dev/null; then
-    inkscape images/wslang.svg --export-png=images/wslang.png --export-width=128 --export-height=128
-    echo "✓ Icon converted successfully using Inkscape"
-else
-    echo "⚠ Warning: Neither ImageMagick nor Inkscape found."
-    echo "  Please manually convert images/wslang.svg to images/wslang.png"
-    echo "  Or install ImageMagick: sudo apt-get install imagemagick"
-fi
-
 echo ""
-echo "Step 2: Checking for vsce (VS Code Extension Manager)..."
+echo "Step 1: Checking for vsce (VS Code Extension Manager)..."
 if command -v vsce &> /dev/null; then
     echo "✓ vsce is installed"
     
     echo ""
-    echo "Step 3: Packaging extension..."
+    echo "Step 2: Packaging extension..."
     vsce package --no-yarn
     
     if [ $? -eq 0 ]; then
@@ -64,7 +51,7 @@ else
 fi
 
 echo ""
-echo "Step 4: Testing"
+echo "Step 3: Testing"
 echo "  - Open example.ws in VS Code to test syntax highlighting"
 echo "  - Check the file icon in the Explorer view"
 echo ""

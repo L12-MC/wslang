@@ -1,10 +1,13 @@
 # Well.. Simple Language Extension for VS Code
 
-This extension provides syntax highlighting and language support for Well.. Simple (.ws) files.
+This extension provides comprehensive language support for Well.. Simple (.ws) files including syntax highlighting, IntelliSense, error detection, and automatic indentation.
 
 ## Features
 
 - **Syntax Highlighting**: Full syntax highlighting for Well.. Simple language
+- **IntelliSense**: Smart autocomplete for built-in functions, keywords, variables, and classes
+- **Error Detection**: Real-time syntax error detection and warnings
+- **Automatic Indentation**: Smart indentation for code blocks (if, while, for, def, class, try)
 - **File Icons**: Custom icons for .ws and .repl files
 - **Auto-completion**: Bracket and quote auto-closing
 - **Code Folding**: Support for folding function and control structure blocks
@@ -29,12 +32,54 @@ This extension provides syntax highlighting and language support for Well.. Simp
 
 ### Built-in Functions
 
-- `print()`, `input()`, `len()`, `type()`
-- `str()`, `int()`, `float()`
-- `list()`, `dict()`
-- `encode()`, `decode()`, `hash()`
-- `sleep()`, `version()`
-- `pkg.install()`, `pkg.list()`, `pkg.remove()`
+#### I/O Functions
+- `print()` - Print to console
+- `input()` - Get user input
+- `readFile()` - Read file contents
+- `writeFile()` - Write to file
+
+#### System Functions
+- `os.command()` / `command()` - Execute system commands
+- `subprocess.run()` - Run command synchronously
+- `subprocess.start()` - Start command asynchronously
+- `sleep()` - Pause execution (milliseconds)
+
+#### Data Structures
+- `append()` - Append to list
+- `length()` - Get list/string length
+- `concat()` - Concatenate strings
+- `split()` - Split string
+
+#### JSON & Encoding
+- `json.parse()` - Parse JSON
+- `json.stringify()` - Convert to JSON
+- `hash.md5()` - MD5 hash
+- `hash.sha256()` - SHA256 hash
+- `encode.base64()` - Base64 encode
+- `decode.base64()` - Base64 decode
+
+#### Canvas Graphics
+- `canvas.clear()` - Clear canvas
+- `canvas.drawCircle()` - Draw circle
+- `canvas.drawRectangle()` - Draw rectangle
+- `canvas.drawTriangle()` - Draw triangle
+- `canvas.drawLine()` - Draw line
+- `canvas.drawPolygon()` - Draw polygon
+- `canvas.render()` - Render canvas
+- `canvas.exportSVG()` - Export to SVG
+
+#### GUI Library
+- `gui.window()` - Create window
+- `gui.button()` - Add button
+- `gui.label()` - Add label
+- `gui.input()` - Add input field
+- `gui.show()` - Show window
+- `gui.close()` - Close window
+
+#### Package Manager
+- `pkg.install()` - Install package from Git
+- `pkg.list()` - List packages
+- `pkg.remove()` - Remove package
 
 ### String Methods
 

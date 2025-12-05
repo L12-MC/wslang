@@ -19,6 +19,24 @@
     ["\"", "\""],
     ["'", "'"]
   ],
+  "indentationRules": {
+    "increaseIndentPattern": "^\\s*(def|if|else|elif|while|for|try|except|finally|class)\\b.*$",
+    "decreaseIndentPattern": "^\\s*end\\b.*$"
+  },
+  "onEnterRules": [
+    {
+      "beforeText": "^\\s*(def|if|else|elif|while|for|try|except|finally|class)\\b.*$",
+      "action": {
+        "indent": "indent"
+      }
+    },
+    {
+      "beforeText": "^\\s*end\\b.*$",
+      "action": {
+        "indent": "outdent"
+      }
+    }
+  ],
   "folding": {
     "markers": {
       "start": "^\\s*(def|if|while|for|try|class)\\b",

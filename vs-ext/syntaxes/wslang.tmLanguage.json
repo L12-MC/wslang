@@ -94,11 +94,19 @@
       "patterns": [
         {
           "name": "entity.name.function.wslang",
-          "match": "\\b(print|input|len|type|str|int|float|list|dict|encode|decode|hash|sleep|version)\\b(?=\\()"
+          "match": "\\b(print|input|len|type|str|int|float|list|dict|encode|decode|hash|sleep|version|command|readFile|writeFile|append|length|concat|split)\\b(?=\\()"
         },
         {
           "name": "support.function.builtin.wslang",
-          "match": "\\b(pkg\\.install|pkg\\.list|pkg\\.remove)\\b"
+          "match": "\\b(pkg\\.install|pkg\\.list|pkg\\.remove|os\\.command|subprocess\\.run|subprocess\\.start|json\\.parse|json\\.stringify|hash\\.md5|hash\\.sha256|encode\\.base64|decode\\.base64)\\b"
+        },
+        {
+          "name": "support.function.canvas.wslang",
+          "match": "\\b(canvas\\.clear|canvas\\.render|canvas\\.drawCircle|canvas\\.drawRectangle|canvas\\.drawTriangle|canvas\\.drawLine|canvas\\.drawPolygon|canvas\\.exportSVG)\\b"
+        },
+        {
+          "name": "support.function.gui.wslang",
+          "match": "\\b(gui\\.window|gui\\.button|gui\\.label|gui\\.input|gui\\.show|gui\\.close)\\b"
         },
         {
           "name": "support.function.string.wslang",
