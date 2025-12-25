@@ -1,4 +1,4 @@
-# Well Simple Language v1.2.0
+# Well Simple Language v1.2.1
 
 **Well Simple** - A Well... Simple yet powerful scripting language with graphics, JSON, cryptography, and file I/O capabilities.
 
@@ -14,203 +14,48 @@ Well Simple comes with three powerful command-line tools:
 - **wpm** - WS Package Manager (install libraries from Git)
 - (wip)**wvm** - WS Version Manager (manage multiple versions)
 
-## What's New in v1.0
+## What's New in v1.2.1
 
-### 🎯 Latest Features
+### Latest Features
 
-#### 💬 User Input Support
+#### Custom CSS On GUI's
 ```ws
-# Get input from users
-name = input("What is your name? ")
-age = input("How old are you? ")
-print(name)
+gui.css(".button {color: green !important;}")
 ```
 
-#### 🐛 Enhanced Error Reporting
-Beautiful, helpful error messages with:
-- 📍 Exact line numbers
-- 📁 File names
-- 📝 Code snippets
-- 💡 Helpful suggestions
+#### Centered Labels and Titles
 
 ```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-❌ ERROR
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-File: myprogram.ws
-Line: 10
-
-Division by zero
-
-Problematic code:
-  │ result = 10 / 0
-  └────────────────
-
-💡 Suggestion:
-  Cannot divide by zero. Check your divisor value.
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+gui.labelcenter(150, "Hello!")
 ```
 
-### Standalone Tools
-- **ws** - Well.. Simple interpreter
-- **wpm** - Separate package manager executable
-- **wvm** - Version manager for multiple WS installations
-
-### Core Features
-
-#### 📦 Package Manager (wpm)
-```bash
-# Install packages from Git repositories (standalone tool)
-wpm install https://github.com/user/package.git package-name
-
-# List installed packages
-wpm list
-
-# Remove packages
-wpm remove package-name
-
-# Update packages
-wpm update package-name
 ```
-
-#### 🔐 Cryptography Library
-```ws
-# MD5 hashing
-hash.md5("Hello World")
-
-# SHA256 hashing
-hash.sha256("Hello World")
-
-# Base64 encoding
-encode.base64("Hello World")
-
-# Base64 decoding
-decode.base64("SGVsbG8gV29ybGQ=")
-```
-
-#### 📄 JSON Library
-```ws
-# Convert to JSON
-data = [1, 2, 3, 4, 5]
-json.stringify(data)
-
-# Parse JSON
-jsonText = "[10, 20, 30]"
-json.parse(jsonText)
-```
-
-#### 📁 File I/O
-```ws
-# Write to file
-writeFile("output.txt", "Hello, World!")
-
-# Read from file
-readFile("output.txt")
-```
-
-#### 🛡️ Error Handling
-```ws
-try
-  x = 10
-  y = 0
-  result = x / y
-except
-  print("Error occurred!")
-  print(error)
-finally
-  print("Cleanup code here")
-end
+gui.title("Hello!")
 ```
 
 ## Quick Start
 
-### Using Dart (Development)
 ```bash
-# Interactive mode
-dart main.dart
-
-# Run a file
-dart main.dart myprogram.ws
-```
-
-### Using Compiled Executable (Production)
-```bash
-# Build the executable (see Building section below)
-./build.sh              # Linux/macOS
-build.bat               # Windows
-
 # Run the executable
-./build/ws-linux        # Linux interactive mode
-./build/ws-linux file.ws   # Linux run file
+./build/wslang-linux       # Linux interactive mode
+./build/wslang-linux file.ws   # Linux run file
 
-./build/ws-macos        # macOS interactive mode
-./build/ws-macos file.ws   # macOS run file
-
-build\ws-windows.exe    # Windows interactive mode
-build\ws-windows.exe file.ws  # Windows run file
+build\wslang-win.exe    # Windows interactive mode
+build\wslang-win.exe file.ws  # Windows run file
 ```
 
-## Building Executables
+## Building Executable
 
-Compile all Well.. Simple tools into standalone executables:
-
-### Build All Tools
+Build WSLang to executable
 
 **Linux/macOS:**
 ```bash
-./build-all.sh
+./build.sh
 ```
-Creates:
-- `build/ws-linux` or `build/ws-macos` (interpreter)
-- `build/wpm-linux` or `build/wpm-macos` (package manager)
-- `build/wvm-linux` or `build/wvm-macos` (version manager)
 
 **Windows:**
 ```batch
-build-all.bat
-```
-Creates:
-- `build\ws-windows.exe` (interpreter)
-- `build\wpm-windows.exe` (package manager)
-- `build\wvm-windows.exe` (version manager)
-
-### Build Individual Tools
-
-```bash
-# Build just the interpreter
-./build.sh
-
-# Build just wpm
-dart compile exe wpm.dart -o build/wpm-linux
-
-# Build just wvm
-dart compile exe wvm.dart -o build/wvm-linux
-```
-
-**Note**: Cross-compilation requires building on each target platform. See [docs/building.md](docs/building.md) for detailed instructions.
-
-### System-Wide Installation
-
-After building, install all tools system-wide:
-
-**Linux/macOS:**
-```bash
-sudo cp build/ws-linux /usr/local/bin/ws
-sudo cp build/wpm-linux /usr/local/bin/wpm
-sudo cp build/wvm-linux /usr/local/bin/wvm
-sudo chmod +x /usr/local/bin/{ws,wpm,wvm}
-```
-
-**Windows:**
-1. Copy all `.exe` files to `C:\Program Files\WellSimple\`
-2. Add the directory to your PATH
-3. Optionally rename: `ws-windows.exe` → `ws.exe`, etc.
-
-Then use from anywhere:
-```bash
-ws program.ws              # Run programs
-wpm install <url>          # Install packages
-wvm install 1.0.0 <path>   # Manage versions
+build.bat
 ```
 
 ## Core Features
@@ -343,7 +188,6 @@ content = readFile("data.txt")
 - [JSON](docs/json.md)
 - [Cryptography](docs/cryptography.md)
 - [Graphics](docs/graphics.md)
-- [Quick Reference](QUICKREF.md)
 
 ## Example Programs
 
@@ -351,12 +195,6 @@ Check the `examples/` directory:
 - `features.ws` - All new features demo
 - `package-demo.ws` - Package manager demonstration
 - `test-pkg-manager.ws` - Package manager testing
-- `house.repl` - Graphics demo (still works)
-- `mathlib.repl` - Math library (still works)
-
-Check the `example-package/` directory:
-- Example package structure with `math.ws` and `strings.ws`
-- Demonstrates how to create your own packages
 
 ## Philosophy
 
@@ -388,4 +226,4 @@ Open source and free to use.
 
 ---
 
-**Well.. Simple** - Because programming should be... well, simple! 🚀
+**Well.. Simple** - Because programming should be... well, simple!

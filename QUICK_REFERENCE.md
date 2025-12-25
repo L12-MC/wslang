@@ -17,7 +17,7 @@ subprocess.start("npm run dev")
 sleep(1000)  # 1 second
 ```
 
-## GUI Library (v1.2.0) - Visual Windows!
+## GUI Library (v1.2.0, v1.2.1) - Visual Windows!
 
 ```ws
 # Create visual window (opens in browser!)
@@ -27,6 +27,10 @@ gui.window(800, 600, "My App")
 gui.label(50, 50, "Hello!")
 gui.button(50, 100, 200, 40, "Click")
 gui.input(50, 160, 300, 30)
+
+# Add custom CSS
+
+gui.css(".button{color: green !important;}")
 
 # Show window in browser
 gui.show()
@@ -116,4 +120,4 @@ echo -e "Alice\n25\nUSA" | ./build/ws-linux myprogram.ws
 - Tests: `test_input_simple.ws`, `test_divzero.ws`
 
 ---
-**Well.. Simple v1.0** | For full documentation see `docs/README.md`
+**Well.. Simple v1.2.1** | For full documentation see `/docs`

@@ -2,7 +2,7 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
 
-const String VERSION = "1.2.0";
+const String VERSION = "1.2.1";
 
 Map<String, dynamic> variables = {};
 Map<String, Function> functions = {};
@@ -248,6 +248,7 @@ class GuiWindow {
   int height = 600;
   String title = "Well.. Simple GUI";
   List<Map<String, dynamic>> widgets = [];
+  List<String> styles = [];
   bool isVisible = false;
   String? htmlFilePath;
   HttpServer? server;
@@ -272,8 +273,27 @@ class GuiWindow {
     });
   }
 
+  void addStyle(String css) {
+    if (css.trim().isEmpty) return;
+    List<String> lines = css.split('\n');
+    for (var i = 0; i < lines.length; i++) {
+      lines[i] = lines[i].trim();
+    }
+    for (var i = 0; i < lines.length; i++) {
+      styles.add(lines[i]);
+    }
+  }
+
   void addLabel(double x, double y, String text) {
     widgets.add({'type': 'label', 'x': x, 'y': y, 'text': text});
+  }
+
+  void addCenterLabel(double y, String text) {
+    widgets.add({'type': 'labelcenter', 'x': 0.0, 'y': y, 'text': text});
+  }
+
+  void addTitle(double x, double y, String text) {
+    widgets.add({'type': 'title', 'x': 0.0, 'y': 0.0, 'text': text});
   }
 
   void addInput(double x, double y, double w, double h) {
@@ -301,6 +321,7 @@ class GuiWindow {
     html.writeln('      background: #f0f0f0;');
     html.writeln('      border: 1px solid #ccc;');
     html.writeln('      margin: 20px auto;');
+    html.writeln('      border-radius: 12px;');
     html.writeln('      box-shadow: 0 2px 10px rgba(0,0,0,0.1);');
     html.writeln('    }');
     html.writeln('    .widget {');
@@ -308,23 +329,31 @@ class GuiWindow {
     html.writeln('      box-sizing: border-box;');
     html.writeln('    }');
     html.writeln('    .button {');
-    html.writeln('      background: #4CAF50;');
+    html.writeln('      background: #2196F3;');
     html.writeln('      color: white;');
-    html.writeln('      border: none;');
-    html.writeln('      border-radius: 4px;');
+    html.writeln('      border: solid 2px #249AF9;');
+    html.writeln('      border-radius: 8px;');
     html.writeln('      font-size: 14px;');
     html.writeln('      cursor: pointer;');
     html.writeln('      display: flex;');
     html.writeln('      align-items: center;');
     html.writeln('      justify-content: center;');
+    html.writeln('      transition: all 0.3s ease;');
     html.writeln('    }');
     html.writeln('    .button:hover {');
-    html.writeln('      background: #45a049;');
+    html.writeln('      background: #1884E4;');
+    html.writeln('      border: solid 2px #299FFF;');
+    html.writeln('      transform: scale(1.03);');
     html.writeln('    }');
     html.writeln('    .label {');
     html.writeln('      color: #333;');
     html.writeln('      font-size: 14px;');
     html.writeln('      display: flex;');
+    html.writeln('      align-items: center;');
+    html.writeln('    }');
+    html.writeln('    .labelcenter {');
+    html.writeln('      color: #333;');
+    html.writeln('      font-size: 14px; position: relative; display: block; width: 100%; text-align: center;');
     html.writeln('      align-items: center;');
     html.writeln('    }');
     html.writeln('    .input {');
@@ -335,7 +364,8 @@ class GuiWindow {
     html.writeln('    }');
     html.writeln('    .input:focus {');
     html.writeln('      outline: none;');
-    html.writeln('      border-color: #4CAF50;');
+    html.writeln('      border-color: #2196F3;');
+    html.writeln('      transition: all 0.5s ease;');
     html.writeln('    }');
     html.writeln('    #title-bar {');
     html.writeln('      background: #2196F3;');
@@ -344,8 +374,18 @@ class GuiWindow {
     html.writeln('      font-weight: bold;');
     html.writeln('      text-align: center;');
     html.writeln('      margin-bottom: 20px;');
+    html.writeln('      border-bottom-left-radius: 8px;');
+    html.writeln('      border-bottom-right-radius: 8px;');
     html.writeln('    }');
+    html.writeln('    h1 {font-size: 24px; position: absolute; width: 100%; text-align: center; margin: 25px 0; color: #222;}');
     html.writeln('  </style>');
+    if (styles.isNotEmpty) {
+      html.writeln('  <style>');
+      for (var style in styles) {
+        html.writeln(style);
+      }
+      html.writeln('  </style>');
+    }
     html.writeln('</head>');
     html.writeln('<body>');
     html.writeln('  <div id="title-bar">$title</div>');
@@ -362,10 +402,18 @@ class GuiWindow {
         String text = widget['text'];
         html.writeln(
             '    <button class="widget button" style="left: ${x}px; top: ${y}px; width: ${w}px; height: ${h}px;">$text</button>');
+      } else if (type == 'labelcenter') {
+        String text = widget['text'];
+        html.writeln(
+            '    <div class="widget labelcenter" style="top: ${y}px">$text</div>');
       } else if (type == 'label') {
         String text = widget['text'];
         html.writeln(
             '    <div class="widget label" style="left: ${x}px; top: ${y}px;">$text</div>');
+      } else if (type == 'title') {
+        String text = widget['text'];
+        html.writeln(
+            '    <h1>$text</h1>');
       } else if (type == 'input') {
         double w = widget['width'];
         double h = widget['height'];
@@ -373,6 +421,8 @@ class GuiWindow {
             '    <input class="widget input" type="text" style="left: ${x}px; top: ${y}px; width: ${w}px; height: ${h}px;" />');
       }
     }
+
+
 
     html.writeln('  </div>');
     html.writeln('</body>');
@@ -2393,6 +2443,28 @@ Future<void> handleGuiCommand(String cmd) async {
       double y = (parseValue(parts[1]) as num).toDouble();
       String text = parseValue(parts[2]).toString();
       guiWindow.addLabel(x, y, text);
+    }
+  } else if (cmd.startsWith('gui.css(') && cmd.endsWith(')')) {
+    String args = cmd.substring(8, cmd.length - 1);
+    List<String> parts = splitArgs(args);
+    if (parts.length == 1) {
+      String text = parseValue(parts[0]).toString();
+      guiWindow.addStyle(text);
+    }
+  } else if (cmd.startsWith('gui.labelcenter(') && cmd.endsWith(')')) {
+    String args = cmd.substring(16, cmd.length - 1);
+    List<String> parts = splitArgs(args);
+    if (parts.length == 2) {
+      String text = parseValue(parts[1]).toString();
+      double y = (parseValue(parts[0]) as num).toDouble();
+      guiWindow.addCenterLabel(y, text);
+    }
+  } else if (cmd.startsWith('gui.title(') && cmd.endsWith(')')) {
+    String args = cmd.substring(10, cmd.length - 1);
+    List<String> parts = splitArgs(args);
+    if (parts.length == 1) {
+      String text = parseValue(parts[0]).toString();
+      guiWindow.addTitle(0.0, 0.0, text);
     }
   } else if (cmd.startsWith('gui.input(') && cmd.endsWith(')')) {
     String args = cmd.substring(10, cmd.length - 1);

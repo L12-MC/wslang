@@ -44,6 +44,12 @@ Add a text label:
 gui.label(50, 50, "Welcome!")
 ```
 
+You can also add centered labels:
+
+```
+gui.labelcenter(150, "Hello!")
+```
+
 Parameters:
 - `x`: X position in pixels
 - `y`: Y position in pixels
@@ -62,6 +68,22 @@ Parameters:
 - `y`: Y position in pixels
 - `width`: Input width
 - `height`: Input height
+
+## Injecting custom CSS Styles
+
+Using `gui.css()` you can inject custom CSS Styles into the `<head>` of the document
+
+```
+# Read CSS from files
+
+css = readFile("test.css")
+gui.css(css)
+
+# Put it in directly
+
+gui.css(".button {color: green !important;}")
+```
+#### Use !important to override defaults
 
 ## Showing and Closing
 
@@ -89,6 +111,11 @@ gui.close()
 # Create a login form
 gui.window(400, 300, "Login")
 
+# Add headers (NEW)
+gui.title("Welcome!")
+
+# Centered Labels (NEW)
+
 # Add labels and inputs
 gui.label(50, 50, "Username:")
 gui.input(50, 80, 300, 30)
@@ -100,11 +127,11 @@ gui.input(50, 160, 300, 30)
 gui.button(50, 210, 100, 40, "Login")
 gui.button(160, 210, 100, 40, "Cancel")
 
+# Inject Custom CSS Styles (NEW)
+gui.css(".button {color: green !important;}")
+
 # Show the window
 gui.show()
-
-# Simulate some processing
-sleep(3000)
 
 # Close the window
 gui.close()
@@ -149,4 +176,4 @@ Planned features for future releases:
 - More widget types (checkbox, radio, dropdown, slider)
 - Layout managers (grid, flexbox)
 - Multi-window support
-- Custom styling options
+- ~~Custom styling options~~ (In versions from 1.2.1)
