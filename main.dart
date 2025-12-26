@@ -2863,7 +2863,7 @@ void main(List<String> args) {
   // Check if a file was passed as argument
   if (args.isNotEmpty) {
     String filename = args[0];
-    if (!filename.endsWith('.ws') && !filename.endsWith('.repl')) {
+    if (!filename.endsWith('.ws') && !filename.endsWith('.wsx')) {
       filename += '.ws';
     }
     executeFile(filename);
