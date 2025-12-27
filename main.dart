@@ -2,11 +2,12 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
 
-const String VERSION = "1.2.1";
+const String VERSION = "1.2.2";
 
 Map<String, dynamic> variables = {};
 Map<String, Function> functions = {};
 Map<String, dynamic> classes = {};
+List<String> defImports = [];
 String? currentError;
 dynamic returnValue;
 bool hasReturned = false;
@@ -85,59 +86,6 @@ class PackageManager {
     }
   }
 
-  static Future<bool> installPackage(String url, String? name) async {
-    try {
-      // Extract package name from URL if not provided
-      if (name == null || name.isEmpty) {
-        name = url.split('/').last.replaceAll('.git', '');
-      }
-
-      print("Installing package: $name");
-      print("From: $url");
-
-      // Create packages directory if it doesn't exist
-      final dir = Directory(packagesDir);
-      if (!dir.existsSync()) {
-        dir.createSync();
-      }
-
-      final packagePath = '$packagesDir/$name';
-      final packageDir = Directory(packagePath);
-
-      // Remove existing package if it exists
-      if (packageDir.existsSync()) {
-        print("Removing existing version...");
-        packageDir.deleteSync(recursive: true);
-      }
-
-      // Clone the repository
-      print("Cloning repository...");
-      var result = await Process.run('git', ['clone', url, packagePath]);
-
-      if (result.exitCode != 0) {
-        print("Error cloning repository:");
-        print(result.stderr);
-        return false;
-      }
-
-      print("Package installed successfully!");
-
-      // Save package info
-      var packages = loadInstalledPackages();
-      packages[name] = {
-        'url': url,
-        'path': packagePath,
-        'installed': DateTime.now().toIso8601String()
-      };
-      saveInstalledPackages(packages);
-
-      return true;
-    } catch (e) {
-      print("Error installing package: $e");
-      return false;
-    }
-  }
-
   static void listPackages() {
     var packages = loadInstalledPackages();
 
@@ -156,33 +104,6 @@ class PackageManager {
       print("  Path: ${info['path']}");
       print("  Installed: ${info['installed']}");
     });
-  }
-
-  static bool removePackage(String name) {
-    try {
-      var packages = loadInstalledPackages();
-
-      if (!packages.containsKey(name)) {
-        print("Package not found: $name");
-        return false;
-      }
-
-      final packagePath = packages[name]['path'];
-      final packageDir = Directory(packagePath);
-
-      if (packageDir.existsSync()) {
-        packageDir.deleteSync(recursive: true);
-        print("Package removed: $name");
-      }
-
-      packages.remove(name);
-      saveInstalledPackages(packages);
-
-      return true;
-    } catch (e) {
-      print("Error removing package: $e");
-      return false;
-    }
   }
 
   static String? resolvePackagePath(String filename) {
@@ -1090,6 +1011,50 @@ void processCommand(String cmd) {
   cmd = cmd.trim();
   if (cmd.isEmpty) return;
 
+  if (cmd == "import gui" && !defImports.contains("gui")) {
+    defImports.add("gui");
+    return;
+  }
+  if (cmd == "import canvas" && !defImports.contains("canvas")) {
+    defImports.add("canvas");
+    return;
+  }
+  if (cmd == "import crypto" && !defImports.contains("crypto")) {
+    defImports.add("crypto");
+    return;
+  }
+  if (cmd == "import json" && !defImports.contains("json")) {
+    defImports.add("json");
+    return;
+  }
+
+    if (cmd == "import os" && !defImports.contains("os")) {
+    defImports.add("os");
+    return;
+  }
+
+    if (cmd == "remove gui" && defImports.contains("gui")) {
+    defImports.remove("gui");
+    return;
+  }
+  if (cmd == "remove canvas" && defImports.contains("canvas")) {
+    defImports.remove("canvas");
+    return;
+  }
+  if (cmd == "remove crypto" && defImports.contains("crypto")) {
+    defImports.remove("crypto");
+    return;
+  }
+  if (cmd == "remove json" && defImports.contains("json")) {
+    defImports.remove("json");
+    return;
+  }
+
+    if (cmd == "remove os" && defImports.contains("os")) {
+    defImports.remove("os");
+    return;
+  }
+
   // Handle return statement
   if (cmd.startsWith('return')) {
     hasReturned = true;
@@ -1127,61 +1092,23 @@ void processCommand(String cmd) {
     print("Well.. Simple v$VERSION");
     return;
   }
-
-  // Package manager commands
-  if (cmd.startsWith('pkg.install(') && cmd.endsWith(')')) {
-    String args = cmd.substring(12, cmd.length - 1).trim();
-    List<String> parts = splitArgs(args);
-
-    if (parts.isEmpty || parts.length > 2) {
-      print(
-          "Usage: pkg.install(\"git-url\") or pkg.install(\"git-url\", \"package-name\")");
-      return;
-    }
-
-    String url = parseValue(parts[0]).toString();
-    String? name;
-    if (parts.length == 2) {
-      name = parseValue(parts[1]).toString();
-    }
-
-    // Run async install
-    PackageManager.installPackage(url, name).then((success) {
-      if (!success) {
-        print(
-            "Installation failed. Make sure git is installed and the URL is correct.");
-      }
-    });
-    return;
-  }
-
-  if (cmd == 'pkg.list' || cmd == 'pkg.list()') {
-    PackageManager.listPackages();
-    return;
-  }
-
-  if (cmd.startsWith('pkg.remove(') && cmd.endsWith(')')) {
-    String name = cmd.substring(11, cmd.length - 1).trim();
-    name = parseValue(name).toString();
-    PackageManager.removePackage(name);
-    return;
-  }
-
   // Handle built-in functions
   if (cmd.startsWith('print(') && cmd.endsWith(')')) {
     String content = cmd.substring(6, cmd.length - 1).trim();
 
-    // Handle string concatenation with + (check for quotes or input() calls)
-    if (content.contains('+') &&
-        (content.contains('"') ||
-            content.contains("'") ||
-            content.contains('input('))) {
-      var result = evaluateStringExpression(content);
-      if (result != null) {
-        print(result);
-        return;
-      }
+    // Updated: Check if content contains '+' AND either a quote OR a known variable
+  String firstPart = content.contains('+') ? content.split('+')[0].trim() : content;
+  if (content.contains('+') &&
+      (content.contains('"') ||
+          content.contains("'") ||
+          content.contains('input(') ||
+          variables.containsKey(firstPart))) { // <--- Added variable check
+    var result = evaluateStringExpression(content, variables);
+    if (result != null) {
+      print(result);
+      return;
     }
+  }
 
     // Handle object property access
     if (content.contains('.') && !content.contains('(')) {
@@ -1226,7 +1153,9 @@ void processCommand(String cmd) {
           if (variables.containsKey(content)) {
             print(variables[content]);
           } else {
-            print("Error: Invalid print argument.");
+            reportError("Error: Invalid print argument.", 
+                suggestion:
+                    "Ensure the argument is a valid variable, string, number, or expression.", line: cmd);
           }
         }
       }
@@ -1394,6 +1323,11 @@ void processCommand(String cmd) {
 
   // JSON operations
   if (cmd.startsWith('json.parse(') && cmd.endsWith(')')) {
+        if (defImports.contains('json') == false) {
+      String currentError = "Error: 'json' module not imported.";
+      reportError(currentError, suggestion: "Add 'import json' at the top of your script.", line: cmd, lineNum: currentLineNum);
+      return;
+    }
     String jsonStr = cmd.substring(11, cmd.length - 1).trim();
     jsonStr = parseValue(jsonStr).toString();
     try {
@@ -1407,6 +1341,11 @@ void processCommand(String cmd) {
   }
 
   if (cmd.startsWith('json.stringify(') && cmd.endsWith(')')) {
+    if (defImports.contains('json') == false) {
+      String currentError = "Error: 'json' module not imported.";
+      reportError(currentError, suggestion: "Add 'import json' at the top of your script.", line: cmd, lineNum: currentLineNum);
+      return;
+    }
     String varName = cmd.substring(15, cmd.length - 1).trim();
     try {
       dynamic value = parseValue(varName);
@@ -1421,6 +1360,11 @@ void processCommand(String cmd) {
 
   // Cryptography operations
   if (cmd.startsWith('hash.md5(') && cmd.endsWith(')')) {
+        if (defImports.contains('crypto') == false) {
+      String currentError = "Error: 'crypto' module not imported.";
+      reportError(currentError, suggestion: "Add 'import crypto' at the top of your script.", line: cmd, lineNum: currentLineNum);
+      return;
+    }
     String text = cmd.substring(9, cmd.length - 1).trim();
     text = parseValue(text).toString();
     var bytes = utf8.encode(text);
@@ -1430,6 +1374,11 @@ void processCommand(String cmd) {
   }
 
   if (cmd.startsWith('hash.sha256(') && cmd.endsWith(')')) {
+        if (defImports.contains('crypto') == false) {
+      String currentError = "Error: 'crypto' module not imported.";
+      reportError(currentError, suggestion: "Add 'import crypto' at the top of your script.", line: cmd, lineNum: currentLineNum);
+      return;
+    }
     String text = cmd.substring(12, cmd.length - 1).trim();
     text = parseValue(text).toString();
     var bytes = utf8.encode(text);
@@ -1439,6 +1388,11 @@ void processCommand(String cmd) {
   }
 
   if (cmd.startsWith('encode.base64(') && cmd.endsWith(')')) {
+        if (defImports.contains('crypto') == false) {
+      String currentError = "Error: 'crypto' module not imported.";
+      reportError(currentError, suggestion: "Add 'import crypto' at the top of your script.", line: cmd, lineNum: currentLineNum);
+      return;
+    }
     String text = cmd.substring(14, cmd.length - 1).trim();
     text = parseValue(text).toString();
     var bytes = utf8.encode(text);
@@ -1448,6 +1402,12 @@ void processCommand(String cmd) {
   }
 
   if (cmd.startsWith('decode.base64(') && cmd.endsWith(')')) {
+
+        if (defImports.contains('crypto') == false) {
+      String currentError = "Error: 'crypto' module not imported.";
+      reportError(currentError, suggestion: "Add 'import crypto' at the top of your script.", line: cmd, lineNum: currentLineNum);
+      return;
+    }
     String text = cmd.substring(14, cmd.length - 1).trim();
     text = parseValue(text).toString();
     try {
@@ -1578,8 +1538,14 @@ void processCommand(String cmd) {
   }
 
   // command(cmd) or os.command(cmd) - run a system command and return exit code
-  if ((cmd.startsWith('command(') || cmd.startsWith('os.command(')) &&
-      cmd.endsWith(')')) {
+  if ((cmd.startsWith('os.command(')) &&
+        cmd.endsWith(')')) {
+        if (defImports.contains('os') == false) {
+      String currentError = "Error: 'os' module not imported.";
+      reportError(currentError, suggestion: "Add 'import os' at the top of your script.", line: cmd, lineNum: currentLineNum);
+      return;
+    }
+
     int startIdx = cmd.startsWith('os.command(') ? 11 : 8;
     String arg = cmd.substring(startIdx, cmd.length - 1).trim();
     String commandStr = arg;
@@ -1605,6 +1571,11 @@ void processCommand(String cmd) {
 
   // sleep(ms) - pause execution for specified milliseconds
   if (cmd.startsWith('sleep(') && cmd.endsWith(')')) {
+            if (defImports.contains('os') == false) {
+      String currentError = "Error: 'os' module not imported.";
+      reportError(currentError, suggestion: "Add 'import os' at the top of your script.", line: cmd, lineNum: currentLineNum);
+      return;
+    }
     String arg = cmd.substring(6, cmd.length - 1).trim();
     try {
       int ms = parseValue(arg) is num
@@ -1620,6 +1591,11 @@ void processCommand(String cmd) {
 
   // subprocess.run(cmd) - run command synchronously and return result
   if (cmd.startsWith('subprocess.run(') && cmd.endsWith(')')) {
+          if (defImports.contains('os') == false) {
+      String currentError = "Error: 'os' module not imported.";
+      reportError(currentError, suggestion: "Add 'import os' at the top of your script.", line: cmd, lineNum: currentLineNum);
+      return;
+    }
     String arg = cmd.substring(15, cmd.length - 1).trim();
     String commandStr = arg;
     try {
@@ -1640,6 +1616,11 @@ void processCommand(String cmd) {
 
   // subprocess.start(cmd) - start command asynchronously (non-blocking)
   if (cmd.startsWith('subprocess.start(') && cmd.endsWith(')')) {
+          if (defImports.contains('os') == false) {
+      String currentError = "Error: 'os' module not imported.";
+      reportError(currentError, suggestion: "Add 'import os' at the top of your script.", line: cmd, lineNum: currentLineNum);
+      return;
+    }
     String arg = cmd.substring(17, cmd.length - 1).trim();
     String commandStr = arg;
     try {
@@ -1656,7 +1637,7 @@ void processCommand(String cmd) {
         print(data);
       });
     }).catchError((e) {
-      print('Error starting subprocess: $e');
+      reportError('Error starting subprocess: $e', line: cmd, suggestion: "Check the command syntax and try again.");
     });
     return;
   }
@@ -1857,8 +1838,8 @@ void processCommand(String cmd) {
         String content = file.readAsStringSync();
         variables[varName] = content;
       } catch (e) {
-        currentError = "Error reading file: $e";
-        print(currentError);
+        String currentError = "Error reading file: $e";
+        reportError(currentError, line: cmd, suggestion: "Ensure the file exists and is readable.");
         variables[varName] = "";
       }
       return;
@@ -1924,16 +1905,19 @@ void processCommand(String cmd) {
       variables[varName] = parseList(expression);
       return;
     }
+// Handle string concatenation with + (handles literals, input, and variables)
+String firstPart = expression.contains('+') ? expression.split('+')[0].trim() : expression;
 
-    // Handle string concatenation with + (only if it contains string literals)
-    if (expression.contains('+') &&
-        (expression.contains('"') || expression.contains("'"))) {
-      var result = evaluateStringExpression(expression);
-      if (result != null) {
-        variables[varName] = result;
-        return;
-      }
-    }
+if (expression.contains('+') &&
+    (expression.contains('"') || 
+     expression.contains("'") || 
+     (variables.containsKey(firstPart) && variables[firstPart] is String))) {
+  var result = evaluateStringExpression(expression, variables);
+  if (result != null) {
+    variables[varName] = result;
+    return;
+  }
+}
 
     // Handle string literals
     if ((expression.startsWith('"') && expression.endsWith('"')) ||
@@ -2145,16 +2129,21 @@ void processCommand(String cmd) {
     }
   }
 
-  // Evaluate expression (only for direct expressions, not assignments)
-  // Try string concatenation first (handles literals and input())
-  if (cmd.contains('+') &&
-      (cmd.contains('"') || cmd.contains("'") || cmd.contains('input('))) {
-    var strResult = evaluateStringExpression(cmd);
-    if (strResult != null) {
-      print(strResult);
-      return;
-    }
+// Evaluate expression (only for direct expressions, not assignments)
+// Try string concatenation first (handles literals, input, and variables)
+String firstExprPart = cmd.contains('+') ? cmd.split('+')[0].trim() : cmd;
+
+if (cmd.contains('+') &&
+    (cmd.contains('"') || 
+     cmd.contains("'") || 
+     cmd.contains('input(') || 
+     variables.containsKey(firstExprPart))) {
+  var strResult = evaluateStringExpression(cmd, variables);
+  if (strResult != null) {
+    print(strResult);
+    return;
   }
+}
 
   // Try simple literal/variable/object value
   try {
@@ -2175,6 +2164,10 @@ void processCommand(String cmd) {
         suggestion:
             "Check that all variables are defined and syntax is correct.\n  Example: x + y * 2 - (z / 4)");
   }
+  reportError("Unrecognized expression or command",
+      line: cmd,
+      suggestion:
+          "Ensure the command is valid. Supported commands include variable assignments, function calls, and expressions.");
 }
 
 List<String> splitArgs(String args) {
@@ -2218,12 +2211,12 @@ List<String> splitArgs(String args) {
   return result;
 }
 
-String? evaluateStringExpression(String expr) {
+String? evaluateStringExpression(String expr, Map<String, dynamic> vars) {
   // First, handle input() calls in the expression
   while (expr.contains('input(')) {
     int inputStart = expr.indexOf('input(');
     int parenCount = 1;
-    int i = inputStart + 6; // Start after 'input('
+    int i = inputStart + 6;
 
     while (i < expr.length && parenCount > 0) {
       if (expr[i] == '(') parenCount++;
@@ -2235,24 +2228,25 @@ String? evaluateStringExpression(String expr) {
       String inputCall = expr.substring(inputStart, i);
       String promptPart = expr.substring(inputStart + 6, i - 1).trim();
 
-      // Execute the input call
       if (promptPart.isNotEmpty) {
         try {
-          String prompt = parseValue(promptPart).toString();
+          // Check if the prompt is a variable or literal
+          String prompt = vars.containsKey(promptPart) 
+              ? vars[promptPart].toString() 
+              : parseValue(promptPart).toString();
           stdout.write(prompt);
         } catch (e) {
-          stdout.write(promptPart);
+          stdout.write(promptPart.replaceAll('"', '').replaceAll("'", ""));
         }
       }
       String? userInput = stdin.readLineSync();
-
-      // Replace the input() call with the actual input value
       expr = expr.replaceFirst(inputCall, '"${userInput ?? ""}"');
     } else {
-      break; // Malformed input call
+      break; 
     }
   }
 
+  // Split by '+' while respecting string literals
   List<String> parts = [];
   String current = '';
   bool inString = false;
@@ -2260,7 +2254,6 @@ String? evaluateStringExpression(String expr) {
 
   for (var i = 0; i < expr.length; i++) {
     var char = expr[i];
-
     if ((char == '"' || char == "'") && (i == 0 || expr[i - 1] != '\\')) {
       if (!inString) {
         inString = true;
@@ -2269,36 +2262,34 @@ String? evaluateStringExpression(String expr) {
       } else if (char == stringChar) {
         inString = false;
         current += char;
-        parts.add(current);
-        current = '';
-      } else {
-        current += char;
       }
-    } else if (inString) {
-      current += char;
-    } else if (char == '+') {
-      if (current.trim().isNotEmpty) {
-        parts.add(current.trim());
-        current = '';
-      }
-    } else if (char != ' ' || current.isNotEmpty) {
+    } else if (!inString && char == '+') {
+      parts.add(current.trim());
+      current = '';
+    } else {
       current += char;
     }
   }
-
-  if (current.trim().isNotEmpty) {
-    parts.add(current.trim());
-  }
-
-  if (parts.isEmpty) return null;
+  if (current.trim().isNotEmpty) parts.add(current.trim());
 
   String result = '';
   for (var part in parts) {
-    try {
-      dynamic value = parseValue(part);
-      result += value.toString();
-    } catch (e) {
-      result += part;
+    // 1. Handle String Literals
+    if ((part.startsWith('"') && part.endsWith('"')) || 
+        (part.startsWith("'") && part.endsWith("'"))) {
+      result += part.substring(1, part.length - 1);
+    } 
+    // 2. Handle Variables (The Fix)
+    else if (vars.containsKey(part)) {
+      result += vars[part].toString();
+    } 
+    // 3. Handle numbers or other tokens via parseValue
+    else {
+      try {
+        result += parseValue(part).toString();
+      } catch (e) {
+        result += part;
+      }
     }
   }
 
@@ -2350,6 +2341,11 @@ dynamic evaluateListAccess(String expr) {
 }
 
 void handleCanvasCommand(String cmd) {
+          if (defImports.contains('canvas') == false) {
+      String currentError = "Error: 'canvas' module not imported.";
+      reportError(currentError, suggestion: "Add 'import canvas' at the top of your script.", line: cmd, lineNum: currentLineNum);
+      return;
+    }
   if (cmd == 'canvas.clear()') {
     canvas.clear();
   } else if (cmd == 'canvas.render()') {
@@ -2415,6 +2411,11 @@ void handleCanvasCommand(String cmd) {
 }
 
 Future<void> handleGuiCommand(String cmd) async {
+          if (defImports.contains('gui') == false) {
+      String currentError = "Error: 'gui' module not imported.";
+      reportError(currentError, suggestion: "Add 'import gui' at the top of your script.", line: cmd, lineNum: currentLineNum);
+      return;
+    }
   if (cmd.startsWith('gui.window(') && cmd.endsWith(')')) {
     String args = cmd.substring(11, cmd.length - 1);
     List<String> parts = splitArgs(args);
@@ -2495,10 +2496,8 @@ void printHelp() {
   print("Files: import filename.ws, run filename.ws");
   print("       readFile(path), writeFile(path, content)");
   print("JSON: json.parse(str), json.stringify(obj)");
-  print("Crypto: hash.md5(text), hash.sha256(text)");
+  print("Cryptography: hash.md5(text), hash.sha256(text)");
   print("        encode.base64(text), decode.base64(text)");
-  print("Packages: pkg.install(\"git-url\", \"name\")");
-  print("          pkg.list(), pkg.remove(\"name\")");
   print("System: os.command(cmd), command(cmd), sleep(ms)");
   print("        subprocess.run(cmd), subprocess.start(cmd)");
   print("GUI: gui.window(w,h,title), gui.button(x,y,w,h,text)");

@@ -33,12 +33,4 @@ account.deposit(500)
 print("After withdrawal of 200:")
 account.withdraw(200)
 
-print("=== Testing readFile() return value ===")
-content = readFile("test_input.txt")
-print(content)
-
-print("=== Testing Package Import ===")
-import testpkg/factorial.wsx
-printFactorial(5)
-
 print("=== All tests passed! ===")

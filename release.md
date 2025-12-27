@@ -1,20 +1,37 @@
-# WSLang v1.2.1 (Minor update)
+# WSLang v1.2.2 (Minor update)
 
-## What's New in v1.2.1
+## What's New in v1.2.2
 
-### Latest Features
+### Fixes / Features
 
-#### Custom CSS On GUI's
+#### String concatenation with variables work
 ```ws
-gui.css(".button {color: green !important;}")
+a = "Hello"
+b = "World!"
+c = a + " " + b
+print(c)
+>> Hello World!
 ```
 
-#### Centered Labels and Titles
+#### Made json, gui, canvas, crypto, and os packages that are not imported by default
 
 ```
-gui.labelcenter(150, "Hello!")
-```
+json.parse("{"hello": "world"}")
+>>
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ERROR
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-```
-gui.title("Hello!")
+Error: 'json' module not imported.
+
+Problematic code:
+  │ json.parse("("hello": "world")")
+  └─────────────────
+
+Suggestion:
+  Add 'import json' at the top of your script.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+import json
+json.parse("{"hello": "world"}")
+
 ```
